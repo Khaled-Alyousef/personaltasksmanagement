@@ -27,7 +27,9 @@ exports.handler = async function(event, context) {
         
         const currentMinute = riyadhTime.getMinutes();
         const currentHour = riyadhTime.getHours();
-        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        
+        // Define a time window for future events to query (49 hours to catch 48h reminders)
+        const futureLimit = new Date(now.getTime() + 49 * 60 * 60 * 1000);
 
         // --- 3. Fetch all users with active push subscriptions ---
         console.log("Fetching users with subscriptions...");
@@ -105,12 +107,16 @@ exports.handler = async function(event, context) {
             // --- Time-sensitive Reminders ---
             
             // Rules 4 & 5: Event reminders
-            const { data: upcomingEvents } = await supabase
+            console.log(`Querying events for ${ownerName} between ${now.toISOString()} and ${futureLimit.toISOString()}`);
+            const { data: upcomingEvents, error: eventsError } = await supabase
                 .from('events').select('title, event_date').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                .gte('event_date', fiveMinutesAgo.toISOString());
+                .gte('event_date', now.toISOString()) 
+                .lte('event_date', futureLimit.toISOString()); 
+
+            if (eventsError) console.error(`Events query error for ${ownerName}:`, eventsError.message);
             
             if (upcomingEvents && upcomingEvents.length > 0) {
-                console.log(`Found ${upcomingEvents.length} upcoming event(s).`);
+                console.log(`Found ${upcomingEvents.length} upcoming event(s) for ${ownerName}.`);
                 for (const event of upcomingEvents) {
                     const eventTime = new Date(event.event_date);
                     const reminders = [
@@ -127,16 +133,21 @@ exports.handler = async function(event, context) {
                     }
                 }
             } else {
-                console.log("No upcoming events found for this user.");
+                console.log(`No upcoming events found for user ${ownerName} in the queried time window.`);
             }
             
             // Rule 6: Planning task reminder
-            const { data: planningTasks } = await supabase
+            console.log(`Querying planning tasks for ${ownerName}...`);
+            const { data: planningTasks, error: planningError } = await supabase
                 .from('tasks').select('title, start_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                .eq('status', 'تخطيط').gte('start_datetime', fiveMinutesAgo.toISOString());
+                .eq('status', 'تخطيط')
+                .gte('start_datetime', now.toISOString())
+                .lte('start_datetime', futureLimit.toISOString());
+            
+            if(planningError) console.error(`Planning tasks query error for ${ownerName}:`, planningError.message);
 
             if (planningTasks && planningTasks.length > 0) {
-                 console.log(`Found ${planningTasks.length} planning task(s).`);
+                 console.log(`Found ${planningTasks.length} planning task(s) for ${ownerName}.`);
                  for (const task of planningTasks) {
                     if (shouldSendReminder(new Date(task.start_datetime), now, 24 * 60)) {
                          console.log(`SENDING planning task notification for "${task.title}" to ${user.name}.`);
@@ -149,12 +160,17 @@ exports.handler = async function(event, context) {
             }
            
             // Rule 7: Execution task reminder
-            const { data: executionTasks } = await supabase
+            console.log(`Querying execution tasks for ${ownerName}...`);
+            const { data: executionTasks, error: executionError } = await supabase
                 .from('tasks').select('title, due_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                .eq('status', 'تنفيذ').gte('due_datetime', fiveMinutesAgo.toISOString());
+                .eq('status', 'تنفيذ')
+                .gte('due_datetime', now.toISOString())
+                .lte('due_datetime', futureLimit.toISOString());
+            
+            if(executionError) console.error(`Execution tasks query error for ${ownerName}:`, executionError.message);
 
              if (executionTasks && executionTasks.length > 0) {
-                console.log(`Found ${executionTasks.length} execution task(s).`);
+                console.log(`Found ${executionTasks.length} execution task(s) for ${ownerName}.`);
                 for (const task of executionTasks) {
                     if (shouldSendReminder(new Date(task.due_datetime), now, 24 * 60)) {
                         console.log(`SENDING execution task notification for "${task.title}" to ${user.name}.`);
@@ -182,16 +198,13 @@ function shouldSendReminder(targetTime, currentTime, minutesBefore, windowMinute
     const windowStart = new Date(currentTime.getTime() - windowMinutes * 60 * 1000);
     const shouldSend = reminderTime > windowStart && reminderTime <= currentTime;
     
-    // Detailed log for debugging time comparisons
-    if (minutesBefore <= 120) { // Log only for recent reminders to avoid spam
-         console.log(`
-         - Checking: ${targetTime.toISOString()} (target) with ${minutesBefore} min reminder
-         - Reminder Time: ${reminderTime.toISOString()}
-         - Window Start:  ${windowStart.toISOString()}
-         - Current Time:  ${currentTime.toISOString()}
-         - Should Send? ---> ${shouldSend}
-         `);
-    }
+    console.log(`
+     - Checking: ${targetTime.toISOString()} (target) with ${minutesBefore} min reminder
+     - Reminder Time: ${reminderTime.toISOString()}
+     - Window Start:  ${windowStart.toISOString()}
+     - Current Time:  ${currentTime.toISOString()}
+     - Should Send? ---> ${shouldSend}
+     `);
 
     return shouldSend;
 }
