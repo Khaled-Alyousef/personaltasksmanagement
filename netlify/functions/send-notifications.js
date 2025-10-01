@@ -7,14 +7,13 @@ exports.handler = async function(event, context) {
     console.log("--- Starting Notification Function ---");
     try {
         // --- 1. Initialize Supabase and Web Push ---
-        console.log("Initializing Supabase and Web Push...");
         const supabase = createClient(
             process.env.SUPABASE_URL,
             process.env.SUPABASE_SERVICE_KEY
         );
 
         webpush.setVapidDetails(
-            'mailto:your-email@example.com', // Replace with a valid email
+            'mailto:your-email@example.com',
             process.env.VAPID_PUBLIC_KEY,
             process.env.VAPID_PRIVATE_KEY
         );
@@ -32,18 +31,14 @@ exports.handler = async function(event, context) {
         const futureLimit = new Date(now.getTime() + 49 * 60 * 60 * 1000);
 
         // --- 3. Fetch all users with active push subscriptions ---
-        console.log("Fetching users with subscriptions...");
         const { data: users, error: usersError } = await supabase
             .from('users')
             .select('name, push_subscription')
             .not('push_subscription', 'is', null);
 
-        if (usersError) {
-            throw new Error(`Error fetching users: ${usersError.message}`);
-        }
-
+        if (usersError) throw new Error(`Error fetching users: ${usersError.message}`);
         if (!users || users.length === 0) {
-            console.log("No users with active subscriptions. Exiting.");
+            console.log("No users with subscriptions. Exiting.");
             return { statusCode: 200, body: "No users with subscriptions." };
         }
         console.log(`Found ${users.length} user(s) with subscriptions.`);
@@ -73,7 +68,7 @@ exports.handler = async function(event, context) {
                         await sendNotification(supabase, subscription, {
                             title: `ملخص مواعيد اليوم (${todaysEvents.length})`,
                             body: `لديك اليوم المواعيد التالية: ${titles}`
-                        });
+                        }, ownerName);
                     }
                 }
                 
@@ -87,7 +82,7 @@ exports.handler = async function(event, context) {
                          await sendNotification(supabase, subscription, {
                             title: `لديك ${onTrackTasks.length} مهام قيد التنفيذ`,
                             body: onTrackTasks.map(t => t.title).join('، ')
-                        });
+                        }, ownerName);
                     }
                 }
 
@@ -101,7 +96,7 @@ exports.handler = async function(event, context) {
                          await sendNotification(supabase, subscription, {
                             title: `لديك ${overdueTasks.length} مهام متأخرة`,
                             body: `المهام المتأخرة: ${overdueTasks.map(t => t.title).join('، ')}`
-                        });
+                        }, ownerName);
                     }
                 }
 
@@ -129,7 +124,7 @@ exports.handler = async function(event, context) {
                         for (const rem of reminders) {
                             if (shouldSendReminder(eventTime, now, rem.diff)) {
                                 console.log(`SENDING event notification for "${event.title}" to ${user.name}. Reason: ${rem.diff} mins before.`);
-                                await sendNotification(supabase, subscription, { title: 'تذكير بموعد', body: rem.body });
+                                await sendNotification(supabase, subscription, { title: 'تذكير بموعد', body: rem.body }, ownerName);
                             }
                         }
                     }
@@ -155,7 +150,7 @@ exports.handler = async function(event, context) {
                              await sendNotification(supabase, subscription, {
                                 title: 'تذكير ببدء مهمة',
                                 body: `سيبدأ تنفيذ مهمة "${task.title}" غداً.`
-                            });
+                            }, ownerName);
                         }
                     }
                 }
@@ -178,7 +173,7 @@ exports.handler = async function(event, context) {
                             await sendNotification(supabase, subscription, {
                                 title: 'تذكير بانتهاء مهمة',
                                 body: `الوقت المحدد لمهمة "${task.title}" ينتهي غداً.`
-                            });
+                            }, ownerName);
                         }
                     }
                 }
@@ -213,20 +208,20 @@ function shouldSendReminder(targetTime, currentTime, minutesBefore, windowMinute
     return shouldSend;
 }
 
-async function sendNotification(supabase, subscription, payload) {
+async function sendNotification(supabase, subscription, payload, userName) {
     try {
-        console.log(`Attempting to send notification: "${payload.title}"`);
+        console.log(`Attempting to send notification: "${payload.title}" to ${userName}`);
         await webpush.sendNotification(subscription, JSON.stringify(payload));
         console.log("Notification sent successfully.");
     } catch (error) {
         if (error.statusCode === 410) {
-            console.log('Subscription expired. Removing from DB.');
+            console.log(`Subscription expired for user ${userName}. Removing from DB.`);
             const { error: deleteError } = await supabase
                 .from('users')
                 .update({ push_subscription: null })
-                .eq('push_subscription', subscription);
+                .eq('name', userName); // Use the user's name to find the record
             if (deleteError) {
-                console.error('Failed to remove expired subscription:', deleteError);
+                console.error(`Failed to remove expired subscription for ${userName}:`, deleteError);
             }
         } else {
             console.error('Error sending notification:', error);
