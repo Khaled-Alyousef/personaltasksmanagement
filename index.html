@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>المساعد الشخصي</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1E293B">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Tajawal', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            background-color: #f3f4f6; 
+            color: #1f2937;
+        }
+        #app > header { padding-top: calc(1rem + env(safe-area-inset-top)); }
+        #app > nav { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+        #toast-container { position: fixed; top: calc(20px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 9999; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; opacity: 0; transform: translateY(-20px); transition: opacity 0.3s ease, transform 0.3s ease; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast-success { background-color: #10B981; } .toast-error { background-color: #EF4444; } .toast-info { background-color: #3B82F6; }
+        .progress-bar { background-color: #e5e7eb; border-radius: 9999px; overflow: hidden; height: 0.5rem; }
+        .progress-bar-inner { background-color: #3b82f6; height: 100%; transition: width 0.5s ease-in-out; }
+        .skeleton-loader { background-color: #e5e7eb; border-radius: 0.5rem; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 50% { opacity: .5; } }
+        .form-field { position: relative; margin-bottom: 2.5rem; }
+        .form-field input, .form-field textarea, .form-field select { width: 100%; padding: 10px 5px; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; background-color: #ffffff; transition: all 0.2s ease-in-out; }
+        .form-field label { position: absolute; top: 11px; right: 12px; color: #6b7280; pointer-events: none; transition: 0.2s ease all; background-color: #ffffff; padding: 0 5px; }
+        .form-field input:focus, .form-field textarea:focus, .form-field select:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); }
+        .form-field input:focus ~ label, .form-field input:not(:placeholder-shown) ~ label, .form-field textarea:focus ~ label, .form-field textarea:not(:placeholder-shown) ~ label, .form-field select:focus ~ label, .form-field select.has-value ~ label { top: -10px; font-size: 0.8rem; color: #3b82f6; }
+        .weather-icon-compact { width: 3rem; height: 3rem; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px;}
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%;}
+        input:checked + .slider { background-color: #2196F3; }
+        input:checked + .slider:before { transform: translateX(22px); }
+        #notification-btn.active svg { color: #3b82f6; }
+    </style>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+               navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW reg failed: ', err));
+            });
+        }
+    </script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="user-selection-screen" class="fixed inset-0 bg-slate-800 flex flex-col justify-center items-center z-50">
+        <div class="text-center p-8">
+            <h1 class="text-4xl font-bold text-white mb-4">إدارة المهام</h1>
+            <p class="text-slate-300 mb-8">من يستخدم التطبيق؟</p>
+            <div id="user-list" class="flex justify-center items-center gap-8"></div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div id="modal-container">
+        <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+                <h3 id="confirmation-title" class="text-lg font-bold mb-4">تأكيد</h3>
+                <p id="confirmation-message" class="text-gray-600 mb-6">هل أنت متأكد؟</p>
+                <div class="flex justify-center space-x-4 space-x-reverse">
+                    <button id="confirm-action-btn" class="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700">تأكيد</button>
+                    <button id="cancel-action-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-400">إلغاء</button>
+                </div>
+            </div>
+        </div>
+        <div id="task-action-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+            <form id="task-action-form" class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md space-y-4">
+                <h3 id="task-action-modal-title" class="text-lg font-bold mb-4">إضافة إجراء</h3>
+                <input type="hidden" id="action-task-id"><input type="hidden" id="action-edit-id">
+                <div><label>عنوان الإجراء</label><input type="text" name="title" class="w-full p-2 border rounded-md bg-gray-50" required></div>
+                <div class="flex items-center gap-2"><input type="checkbox" id="action-done" name="done"><label for="action-done">تم الإنجاز</label></div>
+                <div class="flex justify-end space-x-4 space-x-reverse pt-4 border-t">
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">حفظ</button>
+                    <button type="button" id="cancel-task-action-modal" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-400">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="app" class="max-w-screen-lg mx-auto h-screen flex flex-col hidden">
+        <header class="bg-slate-800 text-white p-4 shadow-lg z-20 flex justify-between items-center">
+            <div class="text-right">
+                <h1 id="app-title" class="text-lg font-bold leading-tight cursor-pointer" title="تسجيل الخروج">إدارة المهام</h1>
+                <div id="date-container" class="text-xs text-gray-400 mt-1"></div>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-4">
+                 <button id="view-mode-toggle-btn" class="p-2 rounded-full hover:bg-slate-700 hidden" title="تغيير طريقة العرض"></button>
+                 <button id="notification-btn" class="p-2 rounded-full hover:bg-slate-700" title="تفعيل الإشعارات"></button>
+                 <button id="exit-app-btn" class="p-2 rounded-full hover:bg-slate-700" title="الخروج من التطبيق">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                 </button>
+            </div>
+        </header>
+
+        <main id="main-content" class="flex-grow p-0 sm:p-4 overflow-y-auto relative">
+            <div id="main-view" class="p-4 sm:p-0">
+                <div id="weather-container" class="mb-4"></div>
+                <div id="screen-content">
+                    <div id="dashboard-screen"><div id="dashboard-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></div>
+                    <div id="appointments-screen" class="hidden"></div>
+                    <div id="tasks-screen" class="hidden"></div>
+                    <div id="execution-screen" class="hidden"></div>
+                    <div id="archive-screen" class="hidden"></div>
+                </div>
+            </div>
+
+            <div id="details-view-container" class="hidden p-4 sm:p-0 h-full flex flex-col bg-gray-100"></div>
+        </main>
+
+        <nav class="bg-slate-700 flex justify-around p-2 sticky bottom-0 z-20">
+            <button data-screen="dashboard-screen" class="nav-btn flex-1 text-center text-white relative"><svg class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg><span class="text-xs">الرئيسية</span></button>
+            <button data-screen="appointments-screen" class="nav-btn flex-1 text-center text-slate-400 relative"><svg class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="text-xs">المواعيد</span></button>
+            <button data-screen="tasks-screen" class="nav-btn flex-1 text-center text-slate-400 relative"><svg class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg><span class="text-xs">المهام</span></button>
+            <button data-screen="execution-screen" class="nav-btn flex-1 text-center text-slate-400 relative"><svg class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">التنفيذ</span></button>
+            <button data-screen="archive-screen" class="nav-btn flex-1 text-center text-slate-400 relative"><svg class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg><span class="text-xs">السجل</span></button>
+        </nav>
+        
+        <div id="fab-container"></div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const SUPABASE_URL = 'https://urshnjnehigaqiborvpd.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyc2huam5laGlnYXFpYm9ydnBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzMjEwMjIsImV4cCI6MjA3MDg5NzAyMn0.iXJy7sePoGB9342mgQ7-of7NWDn4Qq3pVJBvctS5AHk';
+        const WEATHER_API_KEY = '12858a173407a971be405b65f89b9665';
+        const VAPID_PUBLIC_KEY = 'BEWuYKvahtqevioyqNuZ1s9QOc7S_v8M2ZpLvS_8HLvkPWi10WZyFzJ9wBJCFD7NHKIID9xefVchC6qx7xNlt-U';
+        const RIYADH_COORDS = { lat: 24.7136, lon: 46.6753 };
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- Global State ---
+        let currentUser = null;
+        let allData = { tasks: [], events: [], users: [], task_actions: [] };
+        let currentActiveScreen = 'dashboard-screen';
+        let actionToConfirm = null;
+        let isFetchingData = false;
+        let isSubscribed = false;
+        let currentViewMode = 'summary';
+        
+        // --- DOM Elements ---
+        const app = document.getElementById('app');
+        const mainView = document.getElementById('main-view');
+        const detailsViewContainer = document.getElementById('details-view-container');
+        const userSelectionScreen = document.getElementById('user-selection-screen');
+        const userList = document.getElementById('user-list');
+        const appTitle = document.getElementById('app-title');
+        const dateContainer = document.getElementById('date-container');
+        const notificationBtn = document.getElementById('notification-btn');
+        const viewModeToggleBtn = document.getElementById('view-mode-toggle-btn');
+        const screenContentContainer = document.getElementById('screen-content');
+        const fabContainer = document.getElementById('fab-container');
+        const confirmationModal = document.getElementById('confirmation-modal');
+        const confirmActionBtn = document.getElementById('confirm-action-btn');
+        const cancelActionBtn = document.getElementById('cancel-action-btn');
+        const taskActionModal = document.getElementById('task-action-modal');
+        const taskActionForm = document.getElementById('task-action-form');
+        const cancelTaskActionModalBtn = document.getElementById('cancel-task-action-modal');
+        const exitAppBtn = document.getElementById('exit-app-btn');
+        const weatherContainer = document.getElementById('weather-container');
+        
+        const bellIcon = `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>`;
+        const bellSlashIcon = `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-1.75v.01M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341" /><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6" /></svg>`;
+        const summaryIcon = `<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>`;
+        const detailedIcon = `<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>`;
+
+        // --- Toast Notifications ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 4000);
+        }
+        
+        // --- Data Fetching & Cleanup ---
+        async function performAutomaticCleanup() {
+            const now = new Date();
+            const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+
+            const { data: oldTasks, error: tasksError } = await supabaseClient
+                .from('tasks')
+                .select('id')
+                .eq('status', 'مكتملة')
+                .lt('status_updated_at', seventyTwoHoursAgo.toISOString());
+
+            if (tasksError) console.error("Error fetching old tasks:", tasksError);
+            else if (oldTasks.length > 0) {
+                const { error: deleteError } = await supabaseClient.from('tasks').delete().in('id', oldTasks.map(t => t.id));
+                if (deleteError) console.error("Error deleting old tasks:", deleteError);
+            }
+
+            const { data: oldEvents, error: eventsError } = await supabaseClient
+                .from('events')
+                .select('id')
+                .lt('event_date', seventyTwoHoursAgo.toISOString());
+            
+            if (eventsError) console.error("Error fetching old events:", eventsError);
+             else if (oldEvents.length > 0) {
+                const { error: deleteError } = await supabaseClient.from('events').delete().in('id', oldEvents.map(e => e.id));
+                if (deleteError) console.error("Error deleting old events:", deleteError);
+            }
+        }
+
+        async function fetchAllData(showLoading = true, rerenderMainScreen = true) {
+            if (isFetchingData) return;
+            isFetchingData = true;
+
+            if (showLoading) renderSkeletonLoaders();
+            if (!currentUser) {
+                isFetchingData = false;
+                return;
+            }
+            try {
+                const [usersRes, actionsRes, tasksRes, eventsRes] = await Promise.all([
+                    supabaseClient.from('users').select('*'),
+                    supabaseClient.from('task_actions').select('*'),
+                    supabaseClient.from('tasks').select('*').or(`owner.eq.${currentUser},is_shared.eq.true`),
+                    supabaseClient.from('events').select('*').or(`owner.eq.${currentUser},is_shared.eq.true`),
+                ]);
+
+                if (usersRes.error) throw usersRes.error;
+                if (actionsRes.error) throw actionsRes.error;
+                if (tasksRes.error) throw tasksRes.error;
+                if (eventsRes.error) throw eventsRes.error;
+                
+                allData.users = usersRes.data || [];
+                allData.task_actions = actionsRes.data || [];
+                allData.tasks = tasksRes.data || [];
+                allData.events = eventsRes.data || [];
+                
+                if (rerenderMainScreen) {
+                    rerenderActiveScreen();
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                showToast('فشل تحميل البيانات.', 'error');
+            } finally {
+                isFetchingData = false;
+            }
+        }
+        
+        async function checkTaskTransitions() {
+            const now = new Date().toISOString();
+            const { data: tasksToStart, error: fetchError } = await supabaseClient
+                .from('tasks')
+                .select('id')
+                .eq('status', 'تخطيط')
+                .lt('start_datetime', now);
+            
+            if (fetchError) {
+                console.error('Error fetching tasks to transition:', fetchError);
+                return;
+            }
+
+            if (tasksToStart && tasksToStart.length > 0) {
+                const idsToUpdate = tasksToStart.map(t => t.id);
+                const { error: updateError } = await supabaseClient
+                    .from('tasks')
+                    .update({ status: 'تنفيذ' })
+                    .in('id', idsToUpdate);
+                
+                if (updateError) {
+                    console.error('Error transitioning tasks:', updateError);
+                } else {
+                    showToast(`تم نقل ${toIndianNumerals(idsToUpdate.length)} مهمة إلى التنفيذ تلقائياً.`, 'info');
+                    await fetchAllData(false);
+                }
+            }
+        }
+
+        // --- Card & View Rendering ---
+        function toIndianNumerals(str) {
+            if (str === null || str === undefined) return '';
+            const s = String(str);
+            const indianNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            return s.replace(/[0-9]/g, w => indianNumerals[+w]);
+        }
+        const daysOverdue = (dateString) => {
+            const dueDate = new Date(dateString);
+            const now = new Date();
+            dueDate.setHours(0, 0, 0, 0);
+            now.setHours(0, 0, 0, 0);
+            const diffTime = Math.abs(now - dueDate);
+            return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        };
+        function renderEmptyState(title, message) {
+            return `<div class="text-center py-16 px-4"><svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg><h3 class="mt-2 text-lg font-medium text-gray-900">${title}</h3><p class="mt-1 text-sm text-gray-500">${message}</p></div>`;
+        }
+        function renderSkeletonLoaders() {
+            const skeletonCard = `<div class="bg-white p-4 rounded-lg shadow-md"><div class="skeleton-loader h-6 w-3/4 mb-4"></div><div class="skeleton-loader h-4 w-1/2 mb-2"></div><div class="skeleton-loader h-4 w-full"></div><div class="skeleton-loader h-4 w-5/6 mt-1"></div></div>`;
+            const container = document.getElementById('dashboard-content');
+            if (container) {
+                container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">${skeletonCard.repeat(3)}</div>`;
+            }
+        }
+
+        function createCard(item, context = 'default') {
+            const card = document.createElement('div');
+            let cardClasses = 'bg-white p-4 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col';
+            let contentHTML = '', footerHTML = '', actionsHTML = '';
+            
+            const isOwner = item.owner === currentUser;
+            const dateTimeOptions = { calendar: 'gregory', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            const now = new Date();
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
+            if (item.type === 'tasks') {
+                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < now;
+                
+                let timeText = '';
+                if (isOverdue) {
+                    const days = daysOverdue(item.due_datetime);
+                    timeText = `<strong>مدة التأخير:</strong> <span class="text-red-600 font-bold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</span>`;
+                    cardClasses += ' bg-red-100';
+                } else {
+                    timeText = `<strong>نهاية التنفيذ:</strong> ${new Date(item.due_datetime).toLocaleString('ar-EG', dateTimeOptions)}`;
+                }
+
+                if (item.status === 'تنفيذ' && !isOverdue) {
+                    cardClasses += ' bg-green-100';
+                } else if (item.status === 'مكتملة') {
+                    cardClasses += ' bg-blue-100';
+                } else if (item.status === 'مؤرشفة') {
+                    cardClasses += ' bg-orange-100';
+                }
+
+                const actions = allData.task_actions.filter(a => a.task_id === item.id);
+                const completedActions = actions.filter(a => a.done).length;
+                const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
+                
+                if(context === 'archive') {
+                     contentHTML = `<div class="flex-grow"><h3 class="font-bold text-lg mb-2">${item.title}</h3><p class="text-sm text-gray-600 mb-4 line-clamp-2">${item.description || 'لا يوجد وصف'}</p></div>`;
+                     footerHTML = `<div></div>`; 
+                } else {
+                     contentHTML = `
+                        <div class="flex-grow">
+                            <h3 class="font-bold text-lg mb-2">${item.title}</h3>
+                            <p class="text-sm text-gray-600 mb-4 line-clamp-2">${item.description || 'لا يوجد وصف'}</p>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
+                                <span>الإنجاز</span><span>${toIndianNumerals(progress)}%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-bar-inner" style="width: ${progress}%"></div></div>
+                        </div>`;
+                    footerHTML = `
+                        <div class="text-sm font-semibold text-blue-600 flex flex-col gap-1">
+                           <span><strong>بداية التنفيذ:</strong> ${item.start_datetime ? new Date(item.start_datetime).toLocaleString('ar-EG', dateTimeOptions) : 'غير محدد'}</span>
+                           <span>${timeText}</span>
+                        </div>`;
+                }
+
+            } else if (item.type === 'events') {
+                const eventDate = new Date(item.event_date);
+                const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+                
+                if (eventDate < todayStart) { // Past
+                    cardClasses += ' bg-gray-200';
+                } else if (eventDate >= todayStart && eventDate <= todayEnd) { // Today
+                    cardClasses += ' bg-green-100'; 
+                } else { // Future
+                     cardClasses += ' bg-blue-100';
+                }
+
+                contentHTML = `<div class="flex-grow"><h3 class="font-bold text-lg mb-2">${item.title}</h3><p class="text-sm text-gray-600 mb-4 line-clamp-2">${item.description || 'لا يوجد وصف'}</p></div>`;
+                if (context === 'archive') {
+                    footerHTML = `<div></div>`;
+                } else {
+                    footerHTML = `<div class="text-sm font-semibold text-blue-600">${eventDate.toLocaleString('ar-EG', dateTimeOptions)}</div>`;
+                }
+            }
+            
+            card.className = cardClasses;
+
+            const ownerHTML = `<div class="text-xs text-gray-400 mt-1">المالك: ${item.owner}</div>`;
+
+            let dynamicActions = '';
+            if (item.type === 'tasks') {
+                if (item.status === 'تخطيط') {
+                    dynamicActions = `<button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>`;
+                } else if (item.status === 'تنفيذ') {
+                    dynamicActions = `
+                        <button data-action="complete" class="p-2 text-gray-400 hover:text-green-500" title="اكتملت"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></button>
+                        <button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>
+                    `;
+                } else if (item.status === 'مكتملة' && context === 'archive') {
+                     dynamicActions = `<button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>`;
+                }
+            }
+            
+            actionsHTML = `
+                <div class="flex items-center justify-between w-full mt-2">
+                    <div class="flex items-center">
+                        ${dynamicActions}
+                        <button data-action="share" class="p-2 text-gray-400 ${item.is_shared ? 'text-blue-500' : 'hover:text-blue-500'}" title="مشاركة" ${!isOwner ? 'disabled' : ''}><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg></button>
+                        ${item.type === 'tasks' ? `<button data-action="details" class="p-2 text-gray-400 hover:text-blue-500" title="تفاصيل"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.03 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg></button>` : ''}
+                        <button data-action="edit" class="p-2 text-gray-400 hover:text-green-500" title="تعديل"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                    </div>
+                    <button data-action="delete" class="p-2 text-gray-400 hover:text-red-500" title="حذف"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
+                </div>`;
+
+            card.innerHTML = `
+                ${contentHTML}
+                <div class="mt-auto pt-3 border-t border-gray-200">
+                    ${footerHTML}
+                    ${actionsHTML}
+                </div>
+                ${ownerHTML}`;
+            
+            card.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => { e.stopPropagation(); deleteItem(item.type, item.id); });
+            card.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => { e.stopPropagation(); openUpdateScreen(item.type, item); });
+            card.querySelector('[data-action="share"]')?.addEventListener('click', (e) => { e.stopPropagation(); toggleShare(item); });
+            card.querySelector('[data-action="archive"]')?.addEventListener('click', (e) => { e.stopPropagation(); archiveTask(item.id); });
+            card.querySelector('[data-action="complete"]')?.addEventListener('click', (e) => { e.stopPropagation(); markTaskComplete(item.id); });
+            if (item.type === 'tasks') {
+                card.querySelector('[data-action="details"]')?.addEventListener('click', (e) => { e.stopPropagation(); openDetailsScreen('task', item.id); });
+            }
+            return card;
+        }
+
+        // --- Screen Rendering ---
+        function formatTimeRemaining(targetDate, isStartDate = false, itemType = 'tasks') {
+            const now = new Date();
+            const target = new Date(targetDate);
+            const diff = target - now;
+            
+            const strings = {
+                tasks: {
+                    prefix: isStartDate ? 'يبدأ خلال ' : 'ينتهي التنفيذ خلال ',
+                    now: isStartDate ? 'يبدأ الآن' : 'ينتهي الآن',
+                    ended: isStartDate ? 'بدأ التنفيذ' : 'انتهى الوقت'
+                },
+                events: {
+                    prefix: 'يحل الموعد خلال ',
+                    now: 'يحل الموعد الآن',
+                    ended: 'الموعد اليوم'
+                }
+            };
+            const s = strings[itemType];
+
+            if (diff <= 0) { return s.ended; }
+            if (diff < 60000) { return s.now; }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+            let result = s.prefix;
+
+            if (days > 0) {
+                result += `${toIndianNumerals(days)} ${days === 1 ? 'يوم' : (days === 2 ? 'يومين' : 'أيام')}`;
+                if (hours > 0) {
+                    result += ` و ${toIndianNumerals(hours)} ${hours === 1 ? 'ساعة' : 'ساعات'}`;
+                }
+                 return result;
+            }
+            
+            if (hours > 0) {
+                result += `${toIndianNumerals(hours)} ${hours === 1 ? 'ساعة' : 'ساعات'}`;
+                if (minutes > 0) result += ' و ';
+            }
+
+            if (minutes > 0) {
+                result += `${toIndianNumerals(minutes)} دقيقة`;
+            }
+            
+            return result.trim().replace(/ و$/, '');
+        }
+        
+        function renderDashboardScreen() {
+            const container = document.getElementById('dashboard-content');
+            container.innerHTML = '';
+            const now = new Date(); const todayStart = new Date(); todayStart.setHours(0,0,0,0); const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+
+            // --- 1. Top Section: Weather & Summary ---
+            const topSection = document.createElement('div');
+            topSection.className = 'col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6';
+            
+            const executionTasks = allData.tasks.filter(t => t.status === 'تنفيذ');
+            const overdueTasksCount = executionTasks.filter(t => new Date(t.due_datetime) < todayStart).length;
+            const onTrackTasksCount = executionTasks.length - overdueTasksCount;
+            const todaysEventsCount = allData.events.filter(e => { const d = new Date(e.event_date); return d >= todayStart && d <= todayEnd; }).length;
+
+            topSection.innerHTML = `
+                <div id="dashboard-weather-card" class="bg-white p-3 rounded-lg shadow-md"></div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-purple-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center">
+                        <svg class="h-6 w-6 text-purple-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <p class="text-xl font-bold">${toIndianNumerals(todaysEventsCount)}</p>
+                        <p class="text-xs text-gray-600">مواعيد اليوم</p>
+                    </div>
+                    <div class="bg-green-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center">
+                        <svg class="h-6 w-6 text-green-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                        <p class="text-xl font-bold">${toIndianNumerals(onTrackTasksCount)}</p>
+                        <p class="text-xs text-gray-600">قيد التنفيذ</p>
+                    </div>
+                    <div class="bg-red-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center">
+                         <svg class="h-6 w-6 text-red-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <p class="text-xl font-bold">${toIndianNumerals(overdueTasksCount)}</p>
+                        <p class="text-xs text-gray-600">متأخرة</p>
+                    </div>
+                </div>
+            `;
+            container.appendChild(topSection);
+            fetchAndRenderWeather();
+
+            // --- 2. Agenda Timeline ---
+            const agendaEvents = allData.events
+                .filter(e => { const d = new Date(e.event_date); return d >= todayStart && d <= todayEnd; })
+                .map(e => ({...e, type: 'events', sort_time: new Date(e.event_date)}));
+            
+            const agendaTasks = allData.tasks
+                .filter(t => t.status === 'تنفيذ' && new Date(t.due_datetime) >= todayStart)
+                .map(t => ({...t, type: 'tasks', sort_time: new Date(t.due_datetime)}));
+
+            const agendaItems = [...agendaEvents.sort((a,b) => a.sort_time - b.sort_time), ...agendaTasks.sort((a,b) => a.sort_time - b.sort_time)];
+
+            const createTimelineItemHTML = (item) => {
+                let icon = '';
+                let timeDetails = '';
+                
+                if (item.type === 'events') {
+                    const itemTime = new Date(item.sort_time);
+                    const timeStr = itemTime.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit'});
+                    icon = `<div class="bg-purple-500 ring-4 ring-white"><svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg></div>`;
+                    timeDetails = `<p class="block mb-2 text-sm font-normal leading-none text-gray-500">${timeStr}</p>`;
+                } else { // tasks
+                    icon = `<div class="bg-green-500 ring-4 ring-white"><svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></div>`;
+                    timeDetails = `<p class="block text-xs font-normal leading-none text-gray-500">${formatTimeRemaining(item.due_datetime, false, 'tasks')}</p>`;
+                }
+
+                return `
+                    <div class="mb-6 mr-6">
+                        <span class="absolute flex items-center justify-center w-6 h-6 rounded-full -right-3">${icon}</span>
+                        <h4 class="flex items-center mb-1 text-md font-semibold text-gray-900">${item.title}</h4>
+                        ${timeDetails}
+                    </div>
+                `;
+            };
+            
+            const timelineContainer = document.createElement('div');
+            timelineContainer.className = 'col-span-full bg-white p-4 rounded-lg shadow';
+            let timelineContent = `<h3 class="font-bold text-lg mb-4">أجندة اليوم</h3>`;
+            const agendaHTML = agendaItems.map(createTimelineItemHTML).join('');
+
+            if (agendaHTML) {
+                 timelineContent += `<div class="relative border-r-2 border-gray-200 mr-3">${agendaHTML}</div>`;
+            } else {
+                timelineContent += '<p class="text-gray-500 py-4 text-center">لا توجد عناصر في أجندة اليوم.</p>';
+            }
+            timelineContainer.innerHTML = timelineContent;
+            container.appendChild(timelineContainer);
+
+            // --- 3. Overdue tasks section ---
+            const overdueTasks = allData.tasks
+                .filter(t => new Date(t.due_datetime) < todayStart && t.status === 'تنفيذ')
+                .sort((a,b) => new Date(a.due_datetime) - new Date(b.due_datetime));
+
+            if (overdueTasks.length > 0) {
+                 const overdueContainer = document.createElement('div');
+                 overdueContainer.className = 'col-span-full';
+                 let overdueContent = `<h3 class="font-bold text-lg mb-2 text-red-800">مهام متأخرة</h3>`;
+                 overdueContent += '<div class="space-y-3">';
+
+                 overdueTasks.forEach(task => {
+                    const actions = allData.task_actions.filter(a => a.task_id === task.id);
+                    const completedActions = actions.filter(a => a.done).length;
+                    const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
+                    const days = daysOverdue(task.due_datetime);
+
+                    overdueContent += `
+                        <div class="bg-red-100 p-3 rounded-lg shadow flex items-center gap-3 border-r-4 border-red-500">
+                            <div class="flex-shrink-0">
+                                <svg class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            </div>
+                            <div class="flex-grow">
+                                <p class="font-bold text-gray-800">${task.title}</p>
+                                <p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</p>
+                            </div>
+                            <div class="flex-shrink-0 text-center">
+                                <p class="font-bold text-lg text-red-500">${toIndianNumerals(progress)}%</p>
+                                <p class="text-xs text-gray-500">إنجاز</p>
+                            </div>
+                        </div>
+                    `;
+                 });
+                 overdueContent += '</div>';
+                 overdueContainer.innerHTML = overdueContent;
+                 container.appendChild(overdueContainer);
+            }
+        }
+        
+        function getWeatherIconSVG(iconCode, isDay = true) {
+            const iconMap = {
+                '01d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><circle cx="32" cy="32" r="11.2" fill="#f59e0b" stroke="#f59e0b" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="15.2" x2="32" y2="6.8" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="57.2" x2="32" y2="48.8" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="46.8" y1="32" x2="55.2" y2="32" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="8.8" y1="32" x2="17.2" y2="32" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="43.8" y1="19.2" x2="49.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="14.5" y1="48.5" x2="20.2" y2="42.8" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="20.2" y1="19.2" x2="14.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="49.5" y1="48.5" x2="43.8" y2="42.8" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '01n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M34.7,49.5c-0.3,0-0.7,0-1-0.1c-9.2-1.8-15.8-10.4-14-19.6c1.3-6.5,6.4-11.7,12.9-12.9c8.2-1.6,16.2,3.3,19,11.2c1,2.8,1.2,5.8,0.6,8.7c-0.8,3.9-2.9,7.4-6,9.8C43,48.6,38.9,49.5,34.7,49.5z" fill="#72809D" stroke="#72809D" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></g></svg>`,
+                '02d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><circle cx="32" cy="32" r="11.2" fill="#f59e0b" stroke="#f59e0b" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="15.2" x2="32" y2="6.8" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="43.8" y1="19.2" x2="49.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="20.2" y1="19.2" x2="14.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '02n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M34.7,49.5c-0.3,0-0.7,0-1-0.1c-9.2-1.8-15.8-10.4-14-19.6c1.3-6.5,6.4-11.7,12.9-12.9c8.2-1.6,16.2,3.3,19,11.2" fill="#72809D" stroke="#72809D" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '03d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><path d="M49.8,28.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,28.1,49.8,28.1z" fill="#cbd5e1" stroke="#cbd5e1" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '04d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><path d="M49.8,28.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,28.1,49.8,28.1z" fill="#cbd5e1" stroke="#cbd5e1" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '09d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="24" y1="41" x2="24" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="41" x2="32" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="40" y1="41" x2="40" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '10d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="41" x2="32" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '11d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><polygon points="33,40 29,48 35,48 31,56" fill="#f59e0b" stroke="#f59e0b" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '13d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="24" y1="46" x2="40" y2="46" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="38" x2="32" y2="54" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="27" y1="41" x2="37" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="37" y1="41" x2="27" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '50d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><line x1="12" y1="24" x2="52" y2="24" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="32" x2="52" y2="32" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="40" x2="52" y2="40" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`
+            };
+            const genericDay = iconMap['02d'];
+            const genericNight = iconMap['02n'];
+            const generic = isDay ? genericDay : genericNight;
+
+            const key = iconCode.slice(0, 2) + (isDay ? 'd' : 'n');
+            const specificKey = iconCode.slice(0, 2) + 'd'; 
+            
+            return iconMap[key] || iconMap[specificKey] || generic;
+        }
+
+        async function fetchAndRenderWeather() {
+            const weatherCard = document.getElementById('dashboard-weather-card');
+            if (!weatherCard) return;
+            weatherCard.innerHTML = `<div class="skeleton-loader h-full w-full"></div>`;
+
+            try {
+                const FORECAST_URL = `https://api.openweathermap.org/data/2.5/forecast?lat=${RIYADH_COORDS.lat}&lon=${RIYADH_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric&lang=ar`;
+                
+                const forecastRes = await fetch(FORECAST_URL);
+                if (!forecastRes.ok) throw new Error('Weather API fetch failed');
+                
+                const forecastData = await forecastRes.json();
+                const currentData = forecastData.list[0];
+
+                const today = new Date().toISOString().split('T')[0];
+                const todayForecasts = forecastData.list.filter(item => item.dt_txt.startsWith(today));
+                let todayMin = 100, todayMax = -100;
+                 if (todayForecasts.length > 0) {
+                    todayForecasts.forEach(f => {
+                        if (f.main.temp_min < todayMin) todayMin = f.main.temp_min;
+                        if (f.main.temp_max > todayMax) todayMax = f.main.temp_max;
+                    });
+                } else {
+                    todayMin = currentData.main.temp_min;
+                    todayMax = currentData.main.temp_max;
+                }
+                
+                weatherCard.innerHTML = `
+                    <div class="flex items-center justify-between text-sm h-full">
+                        <div class="flex items-center gap-3">
+                            ${getWeatherIconSVG(currentData.weather[0].icon)}
+                            <div>
+                                <p class="text-2xl font-bold">${toIndianNumerals(Math.round(currentData.main.temp))}°</p>
+                                <p class="text-gray-500">${currentData.weather[0].description}</p>
+                            </div>
+                        </div>
+                         <div class="text-left text-xs space-y-1">
+                            <p><strong>المحسوسة:</strong> ${toIndianNumerals(Math.round(currentData.main.feels_like))}°</p>
+                            <p><strong>الرطوبة:</strong> ${toIndianNumerals(currentData.main.humidity)}%</p>
+                            <p><strong>العظمى:</strong> ${toIndianNumerals(Math.round(todayMax))}°</p>
+                            <p><strong>الصغرى:</strong> ${toIndianNumerals(Math.round(todayMin))}°</p>
+                        </div>
+                    </div>`;
+
+            } catch (error) { 
+                console.error("Weather Error:", error);
+                weatherCard.innerHTML = '<p class="text-center text-red-500">فشل تحميل الطقس.</p>';
+            }
+        }
+        function createExecutionSummaryCard(task) {
+            const card = document.createElement('div');
+            
+            const actions = allData.task_actions.filter(a => a.task_id === task.id);
+            const completedActions = actions.filter(a => a.done).length;
+            const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
+            
+            let timeText = '';
+            const now = new Date();
+            const isOverdue = new Date(task.due_datetime) < now;
+
+            if (isOverdue) {
+                const days = daysOverdue(task.due_datetime);
+                timeText = `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</p>`;
+                card.className = 'bg-red-100 p-3 rounded-lg shadow flex items-center gap-3 border-r-4 border-red-500';
+            } else {
+                timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(task.due_datetime, false, 'tasks')}</p>`;
+                card.className = 'bg-green-100 p-3 rounded-lg shadow flex items-center gap-3 border-r-4 border-green-500';
+            }
+
+            card.innerHTML = `
+                <div class="flex-grow min-w-0">
+                    <p class="font-bold text-gray-800">${task.title}</p>
+                    ${timeText}
+                </div>
+                <div class="flex-shrink-0 text-center">
+                    <p class="font-bold text-lg ${isOverdue ? 'text-red-500' : 'text-green-600'}">${toIndianNumerals(progress)}%</p>
+                    <p class="text-xs text-gray-500">إنجاز</p>
+                </div>
+            `;
+            return card;
+        }
+
+        function createSummaryCard(item, screenContext) {
+            const card = document.createElement('div');
+            
+            if (screenContext === 'archive-screen') {
+                let cardClasses = 'bg-white p-3 rounded-lg shadow';
+                if(item.type === 'tasks'){
+                    if (item.status === 'مكتملة') { cardClasses += ' border-r-4 border-blue-500'; } 
+                    else if (item.status === 'مؤرشفة') { cardClasses += ' border-r-4 border-orange-500'; }
+                } else {
+                     cardClasses += ' border-r-4 border-gray-400';
+                }
+                card.className = cardClasses;
+                card.innerHTML = `<p class="font-bold text-gray-800 truncate">${item.title}</p>`;
+                return card;
+            }
+
+            let timeText = '';
+            let progressHTML = '';
+            let cardClasses = 'p-3 rounded-lg shadow flex items-center gap-3 border-r-4';
+            const now = new Date();
+
+            if (item.type === 'tasks') {
+                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < now;
+                const actions = allData.task_actions.filter(a => a.task_id === item.id);
+                const completedActions = actions.filter(a => a.done).length;
+                const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
+                
+                if (item.status === 'تخطيط') {
+                    timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.start_datetime, true, 'tasks')}</p>`;
+                    cardClasses += ' bg-white border-gray-300';
+                } else if (item.status === 'تنفيذ') {
+                     progressHTML = `
+                        <div class="flex-shrink-0 text-center">
+                            <p class="font-bold text-lg ${isOverdue ? 'text-red-600' : 'text-green-600'}">${toIndianNumerals(progress)}%</p>
+                            <p class="text-xs text-gray-500">إنجاز</p>
+                        </div>`;
+                    if (isOverdue) {
+                        const days = daysOverdue(item.due_datetime);
+                        timeText = `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</p>`;
+                        cardClasses += ' bg-red-100 border-red-500';
+                    } else { // On track execution
+                        timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.due_datetime, false, 'tasks')}</p>`;
+                        cardClasses += ' bg-green-100 border-green-500';
+                    }
+                }
+            } else { // events
+                const eventDate = new Date(item.event_date);
+                const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+
+                timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.event_date, true, 'events')}</p>`;
+                
+                if (eventDate >= todayStart && eventDate <= todayEnd) { // Today
+                    cardClasses += ' bg-green-100 border-green-500'; 
+                } else { // Future
+                     cardClasses += ' bg-blue-100 border-blue-500';
+                }
+            }
+
+            card.className = cardClasses;
+            card.innerHTML = `
+                <div class="flex-grow min-w-0">
+                    <p class="font-bold text-gray-800 truncate">${item.title}</p>
+                    ${timeText}
+                </div>
+                ${progressHTML}
+            `;
+            card.addEventListener('click', () => {
+                if(item.type === 'tasks') {
+                    openDetailsScreen('task', item.id);
+                } else {
+                    openUpdateScreen('events', item);
+                }
+            });
+            return card;
+        }
+
+        function renderExecutionScreen() {
+            const container = document.getElementById('execution-screen');
+            container.innerHTML = '';
+            const items = allData.tasks.filter(t => t.status === 'تنفيذ').sort((a,b) => new Date(a.due_datetime) - new Date(b.due_datetime));
+
+            if (items.length === 0) {
+                container.innerHTML = renderEmptyState("لا توجد مهام قيد التنفيذ", "المهام المجدولة ستظهر هنا.");
+                return;
+            }
+
+            const contentGrid = document.createElement('div');
+            container.appendChild(contentGrid);
+
+             if (currentViewMode === 'summary') {
+                contentGrid.className = 'grid grid-cols-1 gap-3 px-2 py-4';
+                items.forEach(item => contentGrid.appendChild(createExecutionSummaryCard(item)));
+            } else { // detailed
+                contentGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-2';
+                items.forEach(item => contentGrid.appendChild(createCard({...item, type: 'tasks'})));
+            }
+        }
+        function renderAppointmentsScreen() {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const items = allData.events.filter(e => new Date(e.event_date) >= todayStart);
+            renderScreenWithViewMode('appointments-screen', items, "لا توجد مواعيد قادمة", "أضف موعداً جديداً لعرضه هنا.", 'events', (a,b) => new Date(a.event_date) - new Date(b.event_date));
+        }
+        function renderTasksScreen() { 
+            renderScreenWithViewMode('tasks-screen', allData.tasks.filter(t => t.status === 'تخطيط'), "لا توجد مهام للتخطيط", "أضف مهمة جديدة.", 'tasks', (a,b) => new Date(a.start_datetime) - new Date(b.start_datetime)); 
+        }
+        
+        function renderArchiveScreen() {
+            const container = document.getElementById('archive-screen');
+            container.innerHTML = '';
+            
+            const now = new Date();
+            const todayStart = new Date(now);
+            todayStart.setHours(0, 0, 0, 0);
+
+            const completedTasks = allData.tasks.filter(t => t.status === 'مكتملة').sort((a,b) => new Date(b.status_updated_at) - new Date(a.status_updated_at));
+            const archivedTasks = allData.tasks.filter(t => t.status === 'مؤرشفة').sort((a,b) => new Date(b.status_updated_at) - new Date(a.status_updated_at));
+            const pastEvents = allData.events.filter(e => new Date(e.event_date) < todayStart).sort((a,b) => new Date(b.event_date) - new Date(a.event_date));
+
+            if (completedTasks.length === 0 && archivedTasks.length === 0 && pastEvents.length === 0) {
+                container.innerHTML = renderEmptyState("السجل فارغ", "المهام والمواعيد المنتهية ستظهر هنا.");
+                return;
+            }
+
+            const mainGrid = document.createElement('div');
+            mainGrid.className = 'grid grid-cols-1 gap-4 px-2 py-4';
+            container.appendChild(mainGrid);
+
+            const createGroup = (title, items, type) => {
+                if (items.length === 0) return;
+                
+                const titleEl = document.createElement('h3');
+                titleEl.className = 'font-bold text-xl mb-3 col-span-full';
+                titleEl.textContent = title;
+                mainGrid.appendChild(titleEl);
+
+                const contentGrid = document.createElement('div');
+                if (currentViewMode === 'summary') {
+                    contentGrid.className = 'grid grid-cols-1 gap-3';
+                     items.forEach(item => {
+                        const itemType = item.due_datetime ? 'tasks' : 'events';
+                        contentGrid.appendChild(createSummaryCard({...item, type: itemType}, 'archive-screen'));
+                    });
+                } else {
+                    contentGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+                    items.forEach(item => {
+                        const itemType = item.due_datetime ? 'tasks' : 'events';
+                        contentGrid.appendChild(createCard({...item, type: itemType}, 'archive'));
+                    });
+                }
+                mainGrid.appendChild(contentGrid);
+            };
+
+            createGroup('المهام المكتملة', completedTasks, 'tasks');
+            createGroup('المهام المؤرشفة', archivedTasks, 'tasks');
+            createGroup('المواعيد المنتهية', pastEvents, 'events');
+        }
+
+        function renderScreenWithViewMode(screenId, items, emptyTitle, emptyMessage, type, sortFn) {
+            const container = document.getElementById(screenId);
+            container.innerHTML = '';
+            const sortedItems = items.sort(sortFn);
+
+            if (sortedItems.length === 0) {
+                container.innerHTML = renderEmptyState(emptyTitle, emptyMessage);
+                return;
+            }
+
+            const contentGrid = document.createElement('div');
+            container.appendChild(contentGrid);
+
+            if (currentViewMode === 'summary') {
+                contentGrid.className = 'grid grid-cols-1 gap-3 px-2 py-4';
+                sortedItems.forEach(item => contentGrid.appendChild(createSummaryCard({...item, type}, screenId)));
+            } else { // detailed
+                contentGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-2';
+                sortedItems.forEach(item => contentGrid.appendChild(createCard({...item, type})));
+            }
+        }
+        
+        function rerenderActiveScreen() {
+            const screens = {
+                'dashboard-screen': renderDashboardScreen, 'appointments-screen': renderAppointmentsScreen,
+                'tasks-screen': renderTasksScreen, 'execution-screen': renderExecutionScreen,
+                'archive-screen': renderArchiveScreen,
+            };
+            
+            if (currentActiveScreen === 'dashboard-screen') {
+                weatherContainer.classList.remove('hidden');
+                viewModeToggleBtn.classList.add('hidden');
+                fetchAndRenderWeather();
+            } else {
+                weatherContainer.classList.add('hidden');
+                viewModeToggleBtn.classList.remove('hidden');
+            }
+            updateViewToggleIcon();
+
+            if (screens[currentActiveScreen]) screens[currentActiveScreen]();
+            updateFab();
+        }
+
+        // --- Navigation & Screen State ---
+        function switchScreen(screenName) {
+            currentActiveScreen = screenName;
+            currentViewMode = localStorage.getItem(`${screenName}_viewMode`) || 'summary';
+            localStorage.setItem('lastActiveScreen', screenName);
+            document.querySelectorAll('#screen-content > div').forEach(screen => screen.classList.add('hidden'));
+            document.getElementById(screenName).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                const isNavBtnForScreen = btn.dataset.screen === screenName;
+                btn.classList.toggle('text-white', isNavBtnForScreen);
+                btn.classList.toggle('text-slate-400', !isNavBtnForScreen);
+            });
+            mainView.classList.remove('hidden');
+            detailsViewContainer.classList.add('hidden');
+            fabContainer.classList.remove('hidden');
+            rerenderActiveScreen();
+        }
+
+        function handleViewModeToggle() {
+            currentViewMode = currentViewMode === 'summary' ? 'detailed' : 'summary';
+            localStorage.setItem(`${currentActiveScreen}_viewMode`, currentViewMode);
+            rerenderActiveScreen();
+        }
+
+        function updateViewToggleIcon() {
+            viewModeToggleBtn.innerHTML = currentViewMode === 'summary' ? detailedIcon : summaryIcon;
+        }
+
+        function updateFab() {
+            fabContainer.innerHTML = '';
+            const fabMapping = {
+                'tasks-screen': { type: 'tasks', icon: `<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>` },
+                'appointments-screen': { type: 'events', icon: `<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>` }
+            };
+            const fabConfig = fabMapping[currentActiveScreen];
+            if (fabConfig) {
+                const fab = document.createElement('button');
+                fab.className = "fixed z-30 bottom-24 left-4 bg-blue-600 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-110";
+                fab.innerHTML = fabConfig.icon;
+                fab.addEventListener('click', () => openUpdateScreen(fabConfig.type, {}));
+                fabContainer.appendChild(fab);
+            }
+        }
+        
+        // --- Forms and Details Screens ---
+        function openUpdateScreen(type, data = {}) {
+            mainView.classList.add('hidden');
+            detailsViewContainer.classList.remove('hidden');
+            fabContainer.classList.add('hidden');
+            detailsViewContainer.innerHTML = `
+                <header class="bg-slate-700 text-white p-3 flex items-center gap-3 flex-shrink-0">
+                    <button id="back-btn" class="p-2 rounded-full hover:bg-slate-600">
+                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                    </button>
+                    <h2 class="text-xl font-bold">${data.id ? 'تعديل' : 'إضافة'} ${type === 'tasks' ? 'مهمة' : 'موعد'}</h2>
+                </header>
+                <div class="flex-grow overflow-y-auto">
+                    <form id="data-form" class="bg-white p-4 space-y-2 h-full flex flex-col">
+                        <div id="form-fields" class="flex-grow space-y-2 pt-6"></div>
+                        <input type="hidden" id="edit-id" value="${data?.id || ''}">
+                        <div class="flex-shrink-0 flex justify-between items-center gap-2 pt-2 border-t">
+                             <div class="flex items-center gap-2">
+                                <label for="is_shared" class="text-sm">مشاركة</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="is_shared" name="is_shared" ${data.is_shared ? 'checked' : ''}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <button type="submit" class="bg-blue-600 text-white px-5 py-2 text-sm rounded-md hover:bg-blue-700">حفظ</button>
+                        </div>
+                    </form>
+                </div>`;
+            generateFormFields(type, data);
+            detailsViewContainer.querySelector('#back-btn').addEventListener('click', () => switchScreen(currentActiveScreen));
+            const form = detailsViewContainer.querySelector('#data-form');
+            form.addEventListener('submit', (e) => handleFormSubmit(e, type));
+            if(type === 'tasks') {
+                const startDateInput = form.querySelector('[name="start_datetime"]');
+                const dueDateInput = form.querySelector('[name="due_datetime"]');
+                const now = toLocalISOString(new Date()).slice(0, 16);
+                
+                if (startDateInput.value < now) startDateInput.min = startDateInput.value; else startDateInput.min = now;
+                if (dueDateInput.value < now) dueDateInput.min = dueDateInput.value; else dueDateInput.min = now;
+
+                startDateInput.addEventListener('change', () => {
+                    if (startDateInput.value) {
+                       dueDateInput.min = startDateInput.value;
+                    }
+                });
+                dueDateInput.addEventListener('change', () => {
+                     if (dueDateInput.value < startDateInput.value) {
+                        showToast('تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ البدء.', 'error');
+                        dueDateInput.value = startDateInput.value;
+                    }
+                });
+            }
+        }
+
+        function generateFormFields(type, data) {
+            const container = detailsViewContainer.querySelector('#form-fields');
+            let fieldsHTML = '';
+            const createField = (label, inputHTML) => `<div class="form-field">${inputHTML}<label>${label}</label></div>`;
+            if (type === 'tasks') {
+                fieldsHTML += createField('عنوان المهمة', `<input type="text" name="title" required value="${data.title||''}" placeholder=" ">`);
+                fieldsHTML += createField('الوصف', `<textarea name="description" placeholder=" ">${data.description||''}</textarea>`);
+                fieldsHTML += createField('تاريخ البدء', `<input type="datetime-local" name="start_datetime" class="${data.start_datetime ? 'has-value' : ''}" value="${toLocalISOString(data.start_datetime)}">`);
+                fieldsHTML += createField('تاريخ الانتهاء', `<input type="datetime-local" name="due_datetime" required class="${data.due_datetime ? 'has-value' : ''}" value="${toLocalISOString(data.due_datetime)}">`);
+            } else { // events
+                fieldsHTML += createField('عنوان الموعد', `<input type="text" name="title" required value="${data.title||''}" placeholder=" ">`);
+                fieldsHTML += createField('الوصف', `<textarea name="description" placeholder=" ">${data.description||''}</textarea>`);
+                fieldsHTML += createField('تاريخ الموعد', `<input type="datetime-local" name="event_date" required class="${data.event_date ? 'has-value' : ''}" value="${toLocalISOString(data.event_date)}">`);
+            }
+            container.innerHTML = fieldsHTML;
+            container.querySelectorAll('select').forEach(el => el.addEventListener('change', e => e.target.classList.add('has-value')));
+        }
+        function toLocalISOString(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            const pad = (num) => String(num).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+        
+        async function handleFormSubmit(e, type) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            let data = Object.fromEntries(formData.entries());
+            data.is_shared = form.querySelector('#is_shared').checked;
+            const id = form.querySelector('#edit-id').value;
+            data.owner = currentUser;
+
+            if (data.start_datetime) data.start_datetime = new Date(data.start_datetime).toISOString();
+            if (data.due_datetime) data.due_datetime = new Date(data.due_datetime).toISOString();
+            if (data.event_date) data.event_date = new Date(data.event_date).toISOString();
+
+            if (type === 'tasks') {
+                const now = new Date();
+                const startDate = data.start_datetime ? new Date(data.start_datetime) : now;
+                const originalTask = id ? allData.tasks.find(t => t.id == id) : null;
+
+                if (originalTask && (originalTask.status === 'مكتملة')) {
+                    data.status = startDate > now ? 'تخطيط' : 'تنفيذ';
+                } else {
+                    data.status = startDate > now ? 'تخطيط' : 'تنفيذ';
+                }
+            }
+
+            const { error } = id ? await supabaseClient.from(type).update(data).eq('id', id) : await supabaseClient.from(type).insert([data]);
+            if (error) { showToast('فشل حفظ البيانات.', 'error'); console.error(error); } 
+            else { showToast('تم الحفظ بنجاح'); switchScreen(currentActiveScreen); await fetchAllData(false); }
+        }
+
+        function openDetailsScreen(type, id) {
+             if (type === 'task') {
+                const task = allData.tasks.find(t => t.id === id);
+                if (!task) return;
+                mainView.classList.add('hidden');
+                detailsViewContainer.classList.remove('hidden');
+                fabContainer.classList.add('hidden');
+                renderTaskDetails(task);
+            }
+        }
+
+        function renderTaskDetails(task) {
+             const actions = allData.task_actions.filter(a => a.task_id === task.id);
+             const actionsHTML = actions.map(action => `
+                <div class="flex justify-between items-center p-3 rounded-lg bg-gray-50">
+                    <span class="${action.done ? 'line-through text-gray-500' : ''}">${action.title}</span>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" data-action-id="${action.id}" ${action.done ? 'checked' : ''} class="toggle-action-done">
+                        <button data-action-id="${action.id}" class="edit-action-btn text-gray-400 hover:text-blue-500">✏️</button>
+                        <button data-action-id="${action.id}" class="delete-action-btn text-gray-400 hover:text-red-500">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+
+            detailsViewContainer.innerHTML = `
+                 <header class="bg-slate-700 text-white p-3 flex items-center gap-3 flex-shrink-0">
+                    <button id="back-btn" class="p-2 rounded-full hover:bg-slate-600"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button>
+                    <h2 class="text-xl font-bold truncate">${task.title}</h2>
+                </header>
+                <div class="flex-grow overflow-y-auto p-4 space-y-4">
+                    <div class="bg-white p-4 rounded-lg shadow"><h4 class="font-bold text-gray-500 text-sm mb-2">الوصف</h4><p class="whitespace-pre-wrap">${task.description || 'لا يوجد وصف'}</p></div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <div class="flex justify-between items-center mb-2">
+                             <h4 class="font-bold text-gray-500 text-sm">قائمة الإجراءات</h4>
+                             <button id="add-new-task-action-btn" class="text-blue-500 font-bold text-lg">+</button>
+                        </div>
+                        <div id="task-actions-list" class="space-y-2">${actions.length > 0 ? actionsHTML : '<p class="text-center text-gray-500 py-4">لا توجد إجراءات</p>'}</div>
+                    </div>
+                </div>
+            `;
+            detailsViewContainer.querySelector('#back-btn').addEventListener('click', () => switchScreen(currentActiveScreen));
+            detailsViewContainer.querySelector('#add-new-task-action-btn').addEventListener('click', () => openTaskActionModal(task.id));
+            detailsViewContainer.querySelectorAll('.toggle-action-done').forEach(el => el.addEventListener('change', (e) => toggleTaskAction(e.target.dataset.actionId, e.target.checked)));
+            detailsViewContainer.querySelectorAll('.edit-action-btn').forEach(el => el.addEventListener('click', (e) => openTaskActionModal(task.id, allData.task_actions.find(a => a.id == e.currentTarget.dataset.actionId))));
+            detailsViewContainer.querySelectorAll('.delete-action-btn').forEach(el => el.addEventListener('click', (e) => deleteTaskAction(e.currentTarget.dataset.actionId)));
+        }
+
+        // --- CRUD Operations & Actions ---
+        function confirmAction(title, message, onConfirm) {
+            confirmationModal.querySelector('#confirmation-title').textContent = title;
+            confirmationModal.querySelector('#confirmation-message').textContent = message;
+            actionToConfirm = onConfirm;
+            confirmationModal.classList.remove('hidden');
+        }
+        function handleConfirmAction() {
+            if (typeof actionToConfirm === 'function') actionToConfirm();
+            actionToConfirm = null;
+            confirmationModal.classList.add('hidden');
+        }
+        async function updateTaskStatus(taskId, status) {
+            const payload = { status: status };
+            if (status === 'مكتملة' || status === 'مؤرشفة') {
+                payload.status_updated_at = new Date().toISOString();
+            }
+            const { error } = await supabaseClient.from('tasks').update(payload).eq('id', taskId);
+            if (error) {
+                showToast(`فشل تحديث حالة المهمة.`, 'error');
+                console.error(error);
+            } else {
+                showToast(`تم تحديث حالة المهمة بنجاح.`);
+                await fetchAllData(false);
+            }
+        }
+        function markTaskComplete(taskId) { confirmAction('تأكيد الإنجاز', 'هل أنت متأكد من أن هذه المهمة قد اكتملت؟', () => updateTaskStatus(taskId, 'مكتملة')); }
+        function archiveTask(taskId) { confirmAction('تأكيد الأرشفة', 'هل أنت متأكد من أرشفة هذه المهمة؟', () => updateTaskStatus(taskId, 'مؤرشفة')); }
+
+        async function deleteItem(table, id) {
+            confirmAction('تأكيد الحذف', 'هل أنت متأكد من حذف هذا العنصر؟', async () => {
+                const { error } = await supabaseClient.from(table).delete().eq('id', id);
+                if (error) { showToast('فشل الحذف', 'error'); console.error(error); }
+                else { showToast('تم الحذف بنجاح'); await fetchAllData(false); }
+            });
+        }
+        async function toggleShare(item) {
+            const newSharedStatus = !item.is_shared;
+            const { error } = await supabaseClient
+                .from(item.type)
+                .update({ is_shared: newSharedStatus })
+                .eq('id', item.id);
+            if (error) {
+                showToast('فشل تحديث حالة المشاركة.', 'error');
+                console.error(error);
+            } else {
+                showToast(newSharedStatus ? 'تمت المشاركة بنجاح' : 'تم إلغاء المشاركة');
+                await fetchAllData(false);
+            }
+        }
+        function openTaskActionModal(taskId, data = null) {
+            taskActionForm.reset();
+            taskActionModal.querySelector('#task-action-modal-title').textContent = data ? 'تعديل إجراء' : 'إضافة إجراء';
+            taskActionModal.querySelector('#action-task-id').value = taskId;
+            taskActionModal.querySelector('#action-edit-id').value = data?.id || '';
+            taskActionModal.querySelector('[name="title"]').value = data?.title || '';
+            taskActionModal.querySelector('[name="done"]').checked = data?.done || false;
+            taskActionModal.classList.remove('hidden');
+        }
+        async function handleTaskActionFormSubmit(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            const taskId = parseInt(form.querySelector('#action-task-id').value);
+            const actionId = form.querySelector('#action-edit-id').value;
+            const payload = { task_id: taskId, title: data.title, done: data.done === 'on' };
+
+            let error;
+
+            if (actionId) {
+                // Handle edit
+                const { data: updatedAction, error: updateError } = await supabaseClient.from('task_actions').update(payload).eq('id', actionId).select().single();
+                error = updateError;
+                if (!error) {
+                    const index = allData.task_actions.findIndex(a => a.id == actionId);
+                    if (index !== -1) allData.task_actions[index] = updatedAction;
+                }
+            } else {
+                // Handle insert
+                const { data: newAction, error: insertError } = await supabaseClient.from('task_actions').insert(payload).select().single();
+                error = insertError;
+                if (!error) {
+                    allData.task_actions.push(newAction);
+                }
+            }
+
+            if(error) { 
+                showToast('فشل حفظ الإجراء', 'error'); 
+                console.error(error); 
+            } else { 
+                showToast('تم حفظ الإجراء'); 
+                taskActionModal.classList.add('hidden'); 
+                const task = allData.tasks.find(t => t.id === taskId);
+                if (task) {
+                    renderTaskDetails(task);
+                    rerenderActiveScreen(); // Rerender main screen to update progress percentages
+                }
+            }
+        }
+        async function toggleTaskAction(actionId, isDone) {
+            const { data: updatedAction, error } = await supabaseClient.from('task_actions').update({ done: isDone }).eq('id', actionId).select().single();
+            if(error) { 
+                showToast('فشل تحديث الإجراء', 'error'); 
+            } else { 
+                const index = allData.task_actions.findIndex(a => a.id == actionId);
+                if (index !== -1) {
+                    allData.task_actions[index] = updatedAction;
+                    const task = allData.tasks.find(t => t.id === updatedAction.task_id);
+                    if (task) {
+                        renderTaskDetails(task);
+                        rerenderActiveScreen(); // Rerender main screen to update progress percentages
+                    }
+                }
+            }
+        }
+        async function deleteTaskAction(actionId) {
+            const actionToDelete = allData.task_actions.find(a => a.id == actionId);
+            if (!actionToDelete) return;
+
+             confirmAction('حذف الإجراء', 'هل تريد حذف هذا الإجراء الفرعي؟', async () => {
+                const { error } = await supabaseClient.from('task_actions').delete().eq('id', actionId);
+                if (error) { 
+                    showToast('فشل حذف الإجراء', 'error'); 
+                } else { 
+                    showToast('تم حذف الإجراء'); 
+                    allData.task_actions = allData.task_actions.filter(a => a.id != actionId);
+                    const task = allData.tasks.find(t => t.id === actionToDelete.task_id);
+                    if (task) {
+                        renderTaskDetails(task);
+                        rerenderActiveScreen(); // Rerender main screen to update progress percentages
+                    }
+                }
+            });
+        }
+
+        // --- User Management & Init ---
+        function getInitials(name) {
+            if (!name) return '';
+            const parts = name.trim().split(/\s+/);
+            if (parts.length > 1 && parts[parts.length - 1]) {
+                return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+            }
+            return name.charAt(0).toUpperCase();
+        }
+
+        async function showUserSelectionScreen() {
+            const { data: users, error } = await supabaseClient.from('users').select('name');
+            if (error) return;
+            
+            userList.innerHTML = users.map(user => {
+                const initials = getInitials(user.name);
+                const colors = ['f87171', 'fb923c', 'fbbf24', 'a3e635', '4ade80', '34d399', '2dd4bf', '22d3ee', '38bdf8', '60a5fa', '818cf8', 'a78bfa', 'c084fc', 'e879f9', 'f472b6'];
+                const color = colors[((user.name.charCodeAt(0) || 0) + (user.name.charCodeAt(1) || 0)) % colors.length];
+                const avatarUrl = `https://placehold.co/100x100/${color}/FFFFFF?text=${encodeURIComponent(initials)}&font=tajawal`;
+
+                return `
+                <div data-name="${user.name}" class="flex flex-col items-center gap-2 cursor-pointer group">
+                    <div class="w-24 h-24 rounded-full bg-slate-600 group-hover:bg-slate-500 transition-colors flex items-center justify-center overflow-hidden">
+                        <img src="${avatarUrl}" class="w-full h-full object-cover" alt="Avatar for ${user.name}">
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-200 group-hover:text-white">${user.name}</h2>
+                </div>`;
+            }).join('');
+            userSelectionScreen.classList.remove('hidden');
+            app.classList.add('hidden');
+        }
+        function updateDateTime() {
+            const now = new Date();
+            const gregorian = new Intl.DateTimeFormat('ar-EG', {
+                calendar: 'gregory',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }).format(now);
+            const hijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            }).format(now);
+            dateContainer.textContent = `${gregorian} - ${hijri}`;
+        }
+        
+        function confirmExitApp() {
+            confirmAction('الخروج من التطبيق', 'هل أنت متأكد من رغبتك في تسجيل الخروج والعودة لشاشة اختيار المستخدم؟', () => {
+                 currentUser = null;
+                 localStorage.removeItem('currentUser');
+                 showUserSelectionScreen();
+            });
+        }
+        
+        function closeApp() {
+            confirmAction('إغلاق التطبيق', 'هل أنت متأكد من رغبتك في إغلاق التطبيق؟', () => {
+                 window.close();
+            });
+        }
+
+        // --- Notifications ---
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        async function updateSubscriptionStatus() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !currentUser) {
+                notificationBtn.innerHTML = bellSlashIcon;
+                notificationBtn.classList.remove('active');
+                return;
+            }
+            const { data, error } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
+            
+            if (error) {
+                console.error("Error checking subscription status:", error);
+                isSubscribed = false;
+            } else {
+                isSubscribed = data && data.push_subscription !== null;
+            }
+            notificationBtn.innerHTML = isSubscribed ? bellIcon : bellSlashIcon;
+            notificationBtn.classList.toggle('active', isSubscribed);
+        }
+
+        async function handleSubscriptionToggle() {
+            if (isSubscribed) {
+                confirmAction('كتم الإشعارات', 'هل أنت متأكد من رغبتك في كتم الإشعارات؟ لن تتلقى أي تنبيهات.', async () => {
+                    notificationBtn.disabled = true;
+                    await unsubscribeFromNotifications();
+                    notificationBtn.disabled = false;
+                });
+            } else {
+                confirmAction('تفعيل الإشعارات', 'هل تسمح بإرسال إشعارات إليك؟', async () => {
+                    notificationBtn.disabled = true;
+                    await subscribeToNotifications();
+                    notificationBtn.disabled = false;
+                });
+            }
+        }
+        
+        async function subscribeToNotifications() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                showToast('الإشعارات غير مدعومة في هذا المتصفح.', 'error');
+                return;
+            }
+
+            if (Notification.permission === 'denied') {
+                showToast('الإشعارات محظورة. يرجى تفعيلها من إعدادات المتصفح.', 'error');
+                return;
+            }
+
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                if (Notification.permission === 'default') {
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') {
+                        showToast('تم رفض إذن الإشعارات.', 'info');
+                        return;
+                    }
+                }
+                
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+                });
+                
+                const { error } = await supabaseClient
+                    .from('users')
+                    .update({ push_subscription: subscription })
+                    .eq('name', currentUser);
+
+                if (error) throw error;
+                
+                isSubscribed = true;
+                showToast('تم تفعيل الإشعارات بنجاح!', 'success');
+                notificationBtn.innerHTML = bellIcon;
+                notificationBtn.classList.add('active');
+
+            } catch (error) {
+                console.error('Failed to subscribe to notifications:', error);
+                showToast('فشل تفعيل الإشعارات.', 'error');
+                isSubscribed = false;
+                notificationBtn.innerHTML = bellSlashIcon;
+                notificationBtn.classList.remove('active');
+            }
+        }
+        
+        async function unsubscribeFromNotifications() {
+            try {
+                 const registration = await navigator.serviceWorker.ready;
+                 const subscription = await registration.pushManager.getSubscription();
+                 if(subscription) {
+                    await subscription.unsubscribe();
+                 }
+                
+                const { error } = await supabaseClient.from('users').update({ push_subscription: null }).eq('name', currentUser);
+                if (error) throw error;
+                
+                isSubscribed = false;
+                showToast('تم كتم الإشعارات.', 'info');
+                notificationBtn.innerHTML = bellSlashIcon;
+                notificationBtn.classList.remove('active');
+
+            } catch (error) {
+                 console.error('Failed to unsubscribe:', error);
+                 showToast('فشل كتم الإشعارات.', 'error');
+                 isSubscribed = true;
+                 notificationBtn.innerHTML = bellIcon;
+                 notificationBtn.classList.add('active');
+            }
+        }
+        
+        function refreshDashboardData() {
+            if (currentActiveScreen === 'dashboard-screen') {
+                fetchAllData(false, true); // Fetch all data and re-render
+            }
+        }
+
+        async function initApp() {
+            appTitle.textContent = `إدارة المهام لـ${currentUser}`;
+            currentViewMode = localStorage.getItem('defaultViewMode') || 'summary';
+            updateDateTime();
+            updateSubscriptionStatus();
+            setInterval(updateDateTime, 60000 * 5);
+            setInterval(checkTaskTransitions, 60000 * 5);
+            setInterval(refreshDashboardData, 30 * 60 * 1000);
+            const lastScreen = localStorage.getItem('lastActiveScreen') || 'dashboard-screen';
+            await performAutomaticCleanup();
+            switchScreen(lastScreen);
+            await fetchAllData();
+            supabaseClient.channel('public-changes').on('postgres_changes', { event: '*', schema: 'public' }, () => fetchAllData(false)).subscribe();
+        }
+
+        function setupEventListeners() {
+            notificationBtn.addEventListener('click', handleSubscriptionToggle);
+            viewModeToggleBtn.addEventListener('click', handleViewModeToggle);
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchScreen(btn.dataset.screen)));
+            userList.addEventListener('click', e => {
+                 const userDiv = e.target.closest('[data-name]');
+                 if (userDiv) { 
+                     currentUser = userDiv.dataset.name; 
+                     localStorage.setItem('currentUser', currentUser); 
+                     localStorage.setItem('lastActiveScreen', 'dashboard-screen');
+                     userSelectionScreen.classList.add('hidden'); 
+                     app.classList.remove('hidden'); 
+                     initApp(); 
+                 }
+            });
+            confirmActionBtn.addEventListener('click', handleConfirmAction);
+            cancelActionBtn.addEventListener('click', () => confirmationModal.classList.add('hidden'));
+            cancelTaskActionModalBtn.addEventListener('click', () => taskActionModal.classList.add('hidden'));
+            taskActionForm.addEventListener('submit', handleTaskActionFormSubmit);
+            appTitle.addEventListener('click', confirmExitApp);
+            exitAppBtn.addEventListener('click', closeApp);
+        }
+        
+        // --- Initial Load ---
+        setupEventListeners();
+        currentUser = localStorage.getItem('currentUser');
+        if (currentUser) { userSelectionScreen.classList.add('hidden'); app.classList.remove('hidden'); initApp(); } 
+        else { showUserSelectionScreen(); }
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "personal-assistant-notifications",
+  "version": "1.0.0",
+  "description": "Handles sending push notifications for tasks and events.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "web-push": "^3.6.7"
+  }
+}
