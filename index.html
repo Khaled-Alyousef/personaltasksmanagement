@@ -1345,7 +1345,7 @@
 
         async function handleSubscriptionToggle() {
             if (isSubscribed) {
-                confirmAction('كتم الإشعارات', 'هل أنت متأكد من رغبتك في كتم الإشعارات؟ لن تتلقى أي تنبيهات.', async () => {
+                confirmAction('كتم الإشعارات', 'هل أنت متأكد من رغبتك في كتم الإشعارات؟', async () => {
                     notificationBtn.disabled = true;
                     await unsubscribeFromNotifications();
                     notificationBtn.disabled = false;
@@ -1392,18 +1392,14 @@
 
                 if (error) throw error;
                 
-                isSubscribed = true;
                 showToast('تم تفعيل الإشعارات بنجاح!', 'success');
-                notificationBtn.innerHTML = bellIcon;
-                notificationBtn.classList.add('active');
 
             } catch (error) {
                 console.error('Failed to subscribe to notifications:', error);
                 showToast('فشل تفعيل الإشعارات.', 'error');
-                isSubscribed = false;
-                notificationBtn.innerHTML = bellSlashIcon;
-                notificationBtn.classList.remove('active');
             }
+            // RELIABLE REFRESH: Fetch the latest status from DB to update the UI
+            await updateSubscriptionStatus();
         }
         
         async function unsubscribeFromNotifications() {
@@ -1417,18 +1413,14 @@
                 const { error } = await supabaseClient.from('users').update({ push_subscription: null }).eq('name', currentUser);
                 if (error) throw error;
                 
-                isSubscribed = false;
                 showToast('تم كتم الإشعارات.', 'info');
-                notificationBtn.innerHTML = bellSlashIcon;
-                notificationBtn.classList.remove('active');
 
             } catch (error) {
                  console.error('Failed to unsubscribe:', error);
                  showToast('فشل كتم الإشعارات.', 'error');
-                 isSubscribed = true;
-                 notificationBtn.innerHTML = bellIcon;
-                 notificationBtn.classList.add('active');
             }
+             // RELIABLE REFRESH: Fetch the latest status from DB to update the UI
+             await updateSubscriptionStatus();
         }
         
         function refreshDashboardData() {
