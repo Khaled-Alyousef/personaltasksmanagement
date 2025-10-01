@@ -28,6 +28,7 @@ exports.handler = async function(event, context) {
         const currentMinute = riyadhTime.getMinutes();
         const currentHour = riyadhTime.getHours();
         
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
         const futureLimit = new Date(now.getTime() + 49 * 60 * 60 * 1000);
 
         // --- 3. Fetch all users with active push subscriptions ---
@@ -107,10 +108,10 @@ exports.handler = async function(event, context) {
                 // --- Time-sensitive Reminders ---
                 
                 // Rules 4 & 5: Event reminders
-                console.log(`Querying events for ${ownerName} between ${now.toISOString()} and ${futureLimit.toISOString()}`);
+                console.log(`Querying events for ${ownerName} between ${fiveMinutesAgo.toISOString()} and ${futureLimit.toISOString()}`);
                 const { data: upcomingEvents, error: eventsError } = await supabase
                     .from('events').select('title, event_date').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                    .gte('event_date', now.toISOString()) 
+                    .gte('event_date', fiveMinutesAgo.toISOString()) 
                     .lte('event_date', futureLimit.toISOString()); 
 
                 if (eventsError) throw new Error(`Events query error: ${eventsError.message}`);
@@ -141,7 +142,7 @@ exports.handler = async function(event, context) {
                 const { data: planningTasks, error: planningError } = await supabase
                     .from('tasks').select('title, start_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
                     .eq('status', 'تخطيط')
-                    .gte('start_datetime', now.toISOString())
+                    .gte('start_datetime', fiveMinutesAgo.toISOString())
                     .lte('start_datetime', futureLimit.toISOString());
                 
                 if(planningError) throw new Error(`Planning tasks query error: ${planningError.message}`);
@@ -164,7 +165,7 @@ exports.handler = async function(event, context) {
                 const { data: executionTasks, error: executionError } = await supabase
                     .from('tasks').select('title, due_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
                     .eq('status', 'تنفيذ')
-                    .gte('due_datetime', now.toISOString())
+                    .gte('due_datetime', fiveMinutesAgo.toISOString())
                     .lte('due_datetime', futureLimit.toISOString());
                 
                 if(executionError) throw new Error(`Execution tasks query error: ${executionError.message}`);
