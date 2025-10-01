@@ -28,7 +28,6 @@ exports.handler = async function(event, context) {
         const currentMinute = riyadhTime.getMinutes();
         const currentHour = riyadhTime.getHours();
         
-        // Define a time window for future events to query (49 hours to catch 48h reminders)
         const futureLimit = new Date(now.getTime() + 49 * 60 * 60 * 1000);
 
         // --- 3. Fetch all users with active push subscriptions ---
@@ -50,136 +49,140 @@ exports.handler = async function(event, context) {
         
         // --- 4. Process notifications for each user ---
         for (const user of users) {
-            console.log(`\nProcessing notifications for user: ${user.name}`);
-            const subscription = user.push_subscription;
-            const ownerName = user.name;
-            
-            // --- Daily Summaries (run at specific times) ---
-            const isWithinFirst5Minutes = currentMinute >= 0 && currentMinute < 5;
+            try {
+                console.log(`\nProcessing notifications for user: ${user.name}`);
+                const subscription = user.push_subscription;
+                const ownerName = user.name;
+                
+                // --- Daily Summaries (run at specific times) ---
+                const isWithinFirst5Minutes = currentMinute >= 0 && currentMinute < 5;
 
-            // Rule 1: Daily appointments summary at 7:00 AM
-            if (currentHour === 7 && isWithinFirst5Minutes) {
-                console.log(`Running daily event summary for ${user.name} at 7 AM.`);
-                const todayStart = new Date(riyadhTime); todayStart.setHours(0, 0, 0, 0);
-                const todayEnd = new Date(riyadhTime); todayEnd.setHours(23, 59, 59, 999);
+                // Rule 1: Daily appointments summary at 7:00 AM
+                if (currentHour === 7 && isWithinFirst5Minutes) {
+                    console.log(`Running daily event summary for ${user.name} at 7 AM.`);
+                    const todayStart = new Date(riyadhTime); todayStart.setHours(0, 0, 0, 0);
+                    const todayEnd = new Date(riyadhTime); todayEnd.setHours(23, 59, 59, 999);
 
-                const { data: todaysEvents } = await supabase
-                    .from('events').select('title').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                    .gte('event_date', todayStart.toISOString()).lte('event_date', todayEnd.toISOString());
+                    const { data: todaysEvents } = await supabase
+                        .from('events').select('title').or(`owner.eq.${ownerName},is_shared.eq.true`)
+                        .gte('event_date', todayStart.toISOString()).lte('event_date', todayEnd.toISOString());
 
-                if (todaysEvents && todaysEvents.length > 0) {
-                    const titles = todaysEvents.map(e => e.title).join('، ');
-                    await sendNotification(supabase, subscription, {
-                        title: `ملخص مواعيد اليوم (${todaysEvents.length})`,
-                        body: `لديك اليوم المواعيد التالية: ${titles}`
-                    });
+                    if (todaysEvents && todaysEvents.length > 0) {
+                        const titles = todaysEvents.map(e => e.title).join('، ');
+                        await sendNotification(supabase, subscription, {
+                            title: `ملخص مواعيد اليوم (${todaysEvents.length})`,
+                            body: `لديك اليوم المواعيد التالية: ${titles}`
+                        });
+                    }
                 }
-            }
-            
-            // Rule 2: On-track tasks summary at 8:00 AM
-            if (currentHour === 8 && isWithinFirst5Minutes) {
-                console.log(`Running on-track tasks summary for ${user.name} at 8 AM.`);
-                 const { data: onTrackTasks } = await supabase
-                    .from('tasks').select('title').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                    .eq('status', 'تنفيذ').gte('due_datetime', now.toISOString());
-                if (onTrackTasks && onTrackTasks.length > 0) {
-                     await sendNotification(supabase, subscription, {
-                        title: `لديك ${onTrackTasks.length} مهام قيد التنفيذ`,
-                        body: onTrackTasks.map(t => t.title).join('، ')
-                    });
+                
+                // Rule 2: On-track tasks summary at 8:00 AM
+                if (currentHour === 8 && isWithinFirst5Minutes) {
+                    console.log(`Running on-track tasks summary for ${user.name} at 8 AM.`);
+                     const { data: onTrackTasks } = await supabase
+                        .from('tasks').select('title').or(`owner.eq.${ownerName},is_shared.eq.true`)
+                        .eq('status', 'تنفيذ').gte('due_datetime', now.toISOString());
+                    if (onTrackTasks && onTrackTasks.length > 0) {
+                         await sendNotification(supabase, subscription, {
+                            title: `لديك ${onTrackTasks.length} مهام قيد التنفيذ`,
+                            body: onTrackTasks.map(t => t.title).join('، ')
+                        });
+                    }
                 }
-            }
 
-            // Rule 3: Overdue tasks summary at 9:00 AM
-            if (currentHour === 9 && isWithinFirst5Minutes) {
-                console.log(`Running overdue tasks summary for ${user.name} at 9 AM.`);
-                const { data: overdueTasks } = await supabase
-                    .from('tasks').select('title').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                    .eq('status', 'تنفيذ').lt('due_datetime', now.toISOString());
-                if (overdueTasks && overdueTasks.length > 0) {
-                     await sendNotification(supabase, subscription, {
-                        title: `لديك ${overdueTasks.length} مهام متأخرة`,
-                        body: `المهام المتأخرة: ${overdueTasks.map(t => t.title).join('، ')}`
-                    });
+                // Rule 3: Overdue tasks summary at 9:00 AM
+                if (currentHour === 9 && isWithinFirst5Minutes) {
+                    console.log(`Running overdue tasks summary for ${user.name} at 9 AM.`);
+                    const { data: overdueTasks } = await supabase
+                        .from('tasks').select('title').or(`owner.eq.${ownerName},is_shared.eq.true`)
+                        .eq('status', 'تنفيذ').lt('due_datetime', now.toISOString());
+                    if (overdueTasks && overdueTasks.length > 0) {
+                         await sendNotification(supabase, subscription, {
+                            title: `لديك ${overdueTasks.length} مهام متأخرة`,
+                            body: `المهام المتأخرة: ${overdueTasks.map(t => t.title).join('، ')}`
+                        });
+                    }
                 }
-            }
 
-            // --- Time-sensitive Reminders ---
-            
-            // Rules 4 & 5: Event reminders
-            console.log(`Querying events for ${ownerName} between ${now.toISOString()} and ${futureLimit.toISOString()}`);
-            const { data: upcomingEvents, error: eventsError } = await supabase
-                .from('events').select('title, event_date').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                .gte('event_date', now.toISOString()) 
-                .lte('event_date', futureLimit.toISOString()); 
+                // --- Time-sensitive Reminders ---
+                
+                // Rules 4 & 5: Event reminders
+                console.log(`Querying events for ${ownerName} between ${now.toISOString()} and ${futureLimit.toISOString()}`);
+                const { data: upcomingEvents, error: eventsError } = await supabase
+                    .from('events').select('title, event_date').or(`owner.eq.${ownerName},is_shared.eq.true`)
+                    .gte('event_date', now.toISOString()) 
+                    .lte('event_date', futureLimit.toISOString()); 
 
-            if (eventsError) console.error(`Events query error for ${ownerName}:`, eventsError.message);
-            
-            if (upcomingEvents && upcomingEvents.length > 0) {
-                console.log(`Found ${upcomingEvents.length} upcoming event(s) for ${ownerName}.`);
-                for (const event of upcomingEvents) {
-                    const eventTime = new Date(event.event_date);
-                    const reminders = [
-                        { diff: 48 * 60, body: `موعد "${event.title}" بعد 48 ساعة.` },
-                        { diff: 24 * 60, body: `موعد "${event.title}" غداً.` },
-                        { diff: 2 * 60, body: `موعد "${event.title}" بعد ساعتين.` },
-                        { diff: 0, body: `حان الآن وقت موعد "${event.title}".` },
-                    ];
-                    for (const rem of reminders) {
-                        if (shouldSendReminder(eventTime, now, rem.diff)) {
-                            console.log(`SENDING event notification for "${event.title}" to ${user.name}. Reason: ${rem.diff} mins before.`);
-                            await sendNotification(supabase, subscription, { title: 'تذكير بموعد', body: rem.body });
+                if (eventsError) throw new Error(`Events query error: ${eventsError.message}`);
+                
+                if (upcomingEvents && upcomingEvents.length > 0) {
+                    console.log(`Found ${upcomingEvents.length} upcoming event(s) for ${ownerName}.`);
+                    for (const event of upcomingEvents) {
+                        const eventTime = new Date(event.event_date);
+                        const reminders = [
+                            { diff: 48 * 60, body: `موعد "${event.title}" بعد 48 ساعة.` },
+                            { diff: 24 * 60, body: `موعد "${event.title}" غداً.` },
+                            { diff: 2 * 60, body: `موعد "${event.title}" بعد ساعتين.` },
+                            { diff: 0, body: `حان الآن وقت موعد "${event.title}".` },
+                        ];
+                        for (const rem of reminders) {
+                            if (shouldSendReminder(eventTime, now, rem.diff)) {
+                                console.log(`SENDING event notification for "${event.title}" to ${user.name}. Reason: ${rem.diff} mins before.`);
+                                await sendNotification(supabase, subscription, { title: 'تذكير بموعد', body: rem.body });
+                            }
+                        }
+                    }
+                } else {
+                    console.log(`No upcoming events found for user ${ownerName} in the queried time window.`);
+                }
+                
+                // Rule 6: Planning task reminder
+                console.log(`Querying planning tasks for ${ownerName}...`);
+                const { data: planningTasks, error: planningError } = await supabase
+                    .from('tasks').select('title, start_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
+                    .eq('status', 'تخطيط')
+                    .gte('start_datetime', now.toISOString())
+                    .lte('start_datetime', futureLimit.toISOString());
+                
+                if(planningError) throw new Error(`Planning tasks query error: ${planningError.message}`);
+
+                if (planningTasks && planningTasks.length > 0) {
+                     console.log(`Found ${planningTasks.length} planning task(s) for ${ownerName}.`);
+                     for (const task of planningTasks) {
+                        if (shouldSendReminder(new Date(task.start_datetime), now, 24 * 60)) {
+                             console.log(`SENDING planning task notification for "${task.title}" to ${user.name}.`);
+                             await sendNotification(supabase, subscription, {
+                                title: 'تذكير ببدء مهمة',
+                                body: `سيبدأ تنفيذ مهمة "${task.title}" غداً.`
+                            });
                         }
                     }
                 }
-            } else {
-                console.log(`No upcoming events found for user ${ownerName} in the queried time window.`);
-            }
-            
-            // Rule 6: Planning task reminder
-            console.log(`Querying planning tasks for ${ownerName}...`);
-            const { data: planningTasks, error: planningError } = await supabase
-                .from('tasks').select('title, start_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                .eq('status', 'تخطيط')
-                .gte('start_datetime', now.toISOString())
-                .lte('start_datetime', futureLimit.toISOString());
-            
-            if(planningError) console.error(`Planning tasks query error for ${ownerName}:`, planningError.message);
+               
+                // Rule 7: Execution task reminder
+                console.log(`Querying execution tasks for ${ownerName}...`);
+                const { data: executionTasks, error: executionError } = await supabase
+                    .from('tasks').select('title, due_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
+                    .eq('status', 'تنفيذ')
+                    .gte('due_datetime', now.toISOString())
+                    .lte('due_datetime', futureLimit.toISOString());
+                
+                if(executionError) throw new Error(`Execution tasks query error: ${executionError.message}`);
 
-            if (planningTasks && planningTasks.length > 0) {
-                 console.log(`Found ${planningTasks.length} planning task(s) for ${ownerName}.`);
-                 for (const task of planningTasks) {
-                    if (shouldSendReminder(new Date(task.start_datetime), now, 24 * 60)) {
-                         console.log(`SENDING planning task notification for "${task.title}" to ${user.name}.`);
-                         await sendNotification(supabase, subscription, {
-                            title: 'تذكير ببدء مهمة',
-                            body: `سيبدأ تنفيذ مهمة "${task.title}" غداً.`
-                        });
+                 if (executionTasks && executionTasks.length > 0) {
+                    console.log(`Found ${executionTasks.length} execution task(s) for ${ownerName}.`);
+                    for (const task of executionTasks) {
+                        if (shouldSendReminder(new Date(task.due_datetime), now, 24 * 60)) {
+                            console.log(`SENDING execution task notification for "${task.title}" to ${user.name}.`);
+                            await sendNotification(supabase, subscription, {
+                                title: 'تذكير بانتهاء مهمة',
+                                body: `الوقت المحدد لمهمة "${task.title}" ينتهي غداً.`
+                            });
+                        }
                     }
                 }
-            }
-           
-            // Rule 7: Execution task reminder
-            console.log(`Querying execution tasks for ${ownerName}...`);
-            const { data: executionTasks, error: executionError } = await supabase
-                .from('tasks').select('title, due_datetime').or(`owner.eq.${ownerName},is_shared.eq.true`)
-                .eq('status', 'تنفيذ')
-                .gte('due_datetime', now.toISOString())
-                .lte('due_datetime', futureLimit.toISOString());
-            
-            if(executionError) console.error(`Execution tasks query error for ${ownerName}:`, executionError.message);
-
-             if (executionTasks && executionTasks.length > 0) {
-                console.log(`Found ${executionTasks.length} execution task(s) for ${ownerName}.`);
-                for (const task of executionTasks) {
-                    if (shouldSendReminder(new Date(task.due_datetime), now, 24 * 60)) {
-                        console.log(`SENDING execution task notification for "${task.title}" to ${user.name}.`);
-                        await sendNotification(supabase, subscription, {
-                            title: 'تذكير بانتهاء مهمة',
-                            body: `الوقت المحدد لمهمة "${task.title}" ينتهي غداً.`
-                        });
-                    }
-                }
+            } catch (userError) {
+                console.error(`!!! ERROR processing user ${user.name}:`, userError.message);
             }
         }
 
