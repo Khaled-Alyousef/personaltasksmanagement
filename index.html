@@ -329,7 +329,7 @@
             todayStart.setHours(0, 0, 0, 0);
 
             if (item.type === 'tasks') {
-                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < todayStart;
+                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < now;
                 
                 let timeText = '';
                 if (isOverdue) {
@@ -725,9 +725,7 @@
             
             let timeText = '';
             const now = new Date();
-            const todayStart = new Date();
-            todayStart.setHours(0,0,0,0);
-            const isOverdue = new Date(task.due_datetime) < todayStart;
+            const isOverdue = new Date(task.due_datetime) < now;
 
             if (isOverdue) {
                 const days = daysOverdue(task.due_datetime);
@@ -776,9 +774,7 @@
             const now = new Date();
 
             if (item.type === 'tasks') {
-                const todayStart = new Date();
-                todayStart.setHours(0,0,0,0);
-                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < todayStart;
+                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < now;
                 const actions = allData.task_actions.filter(a => a.task_id === item.id);
                 const completedActions = actions.filter(a => a.done).length;
                 const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
@@ -823,9 +819,13 @@
                 </div>
                 ${progressHTML}
             `;
-            if (screenContext === 'tasks-screen' || screenContext === 'appointments-screen') {
-                card.addEventListener('click', () => {
-                    openUpdateScreen(item.type, item);
+            if (screenContext !== 'tasks-screen' && screenContext !== 'appointments-screen') {
+                 card.addEventListener('click', () => {
+                    if(item.type === 'tasks') {
+                        openDetailsScreen('task', item.id);
+                    } else {
+                        openUpdateScreen('events', item);
+                    }
                 });
             }
             return card;
@@ -1368,41 +1368,36 @@
             return outputArray;
         }
 
-        async function syncSubscription() {
-            if (!currentUser || !('serviceWorker' in navigator) || !'PushManager' in window) {
-                notificationSwitch.checked = false;
-                return;
-            };
-
-            const { data, error } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
-            if (error) {
-                console.error("Failed to fetch user subscription status:", error);
+        async function updateSubscriptionStatus() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !currentUser) {
                 notificationSwitch.checked = false;
                 return;
             }
+            try {
+                const { data, error } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
+                if (error) throw error;
+                
+                const registration = await navigator.serviceWorker.ready;
+                const browserSubscription = await registration.pushManager.getSubscription();
+                const dbSubscription = data ? data.push_subscription : null;
 
-            const isSubscribedInDB = data && data.push_subscription !== null;
-
-            if (isSubscribedInDB) {
-                console.log("Notifications are enabled in DB. Syncing subscription for this device.");
-                try {
-                    const registration = await navigator.serviceWorker.ready;
-                    let subscription = await registration.pushManager.getSubscription();
-                    if (!subscription) {
-                         showToast("يرجى منح إذن الإشعارات للمتصفح.", "info");
-                         // Unsubscribe from DB if permission is not granted but switch was on
-                         await saveSubscriptionToDB(null);
-                         notificationSwitch.checked = false;
-                         return;
+                if (dbSubscription && browserSubscription) {
+                    if (dbSubscription.endpoint !== browserSubscription.endpoint) {
+                        console.log("Subscription mismatch detected. Updating DB with current device's subscription.");
+                        await saveSubscriptionToDB(browserSubscription);
+                        notificationSwitch.checked = true;
+                    } else {
+                        notificationSwitch.checked = true;
                     }
-                    await saveSubscriptionToDB(subscription);
+                } else if (browserSubscription && !dbSubscription) {
+                    console.log("Browser subscription found but not in DB. Updating DB.");
+                    await saveSubscriptionToDB(browserSubscription);
                     notificationSwitch.checked = true;
-                } catch (err) {
-                    console.error("Failed to sync subscription:", err);
-                    showToast('فشل مزامنة الإشعارات. قد تحتاج لإعادة تفعيلها.', 'error');
+                } else {
                     notificationSwitch.checked = false;
                 }
-            } else {
+            } catch (err) {
+                console.error("Error during subscription status update:", err);
                 notificationSwitch.checked = false;
             }
         }
@@ -1481,7 +1476,7 @@
                 showToast(`فشل التفعيل: ${error.message || error}`, 'error');
                 if (notificationSwitch) notificationSwitch.checked = false;
             }
-            await syncSubscription();
+            await updateSubscriptionStatus();
         }
         
         async function unsubscribeFromNotifications() {
@@ -1502,7 +1497,7 @@
                 console.error('Failed to unsubscribe:', error);
                 showToast('فشل كتم الإشعارات.', 'error');
             }
-             await syncSubscription();
+             await updateSubscriptionStatus();
         }
         
         function refreshDashboardData() {
@@ -1515,7 +1510,7 @@
             appTitle.textContent = `إدارة المهام لـ${currentUser}`;
             currentViewMode = localStorage.getItem('defaultViewMode') || 'summary';
             updateDateTime();
-            await syncSubscription(); // Changed to the new sync function
+            updateSubscriptionStatus();
             setInterval(updateDateTime, 60000 * 5);
             setInterval(checkTaskTransitions, 60000 * 5);
             setInterval(refreshDashboardData, 30 * 60 * 1000);
