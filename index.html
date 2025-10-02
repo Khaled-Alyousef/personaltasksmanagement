@@ -1481,6 +1481,7 @@
             await performAutomaticCleanup();
             switchScreen(lastScreen);
             await fetchAllData();
+            await checkTaskTransitions(); // Check for transitions on initial load
             supabaseClient.channel('public-changes').on('postgres_changes', { event: '*', schema: 'public' }, () => fetchAllData(false)).subscribe();
         }
 
