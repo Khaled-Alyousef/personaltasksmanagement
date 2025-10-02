@@ -595,7 +595,8 @@
                 timelineContent += '<p class="text-gray-500 py-4 text-center">لا توجد عناصر في أجندة اليوم.</p>';
             }
             timelineContainer.innerHTML = timelineContent;
-            container.appendChild(timelineContainer);
+            container.appendChild(topSection);
+            fetchAndRenderWeather();
 
             // --- 3. Overdue tasks section ---
             const overdueTasks = allData.tasks
@@ -1369,6 +1370,11 @@
         }
 
         async function handleSubscriptionToggle(e) {
+            if (!currentUser) {
+                showToast('اختر المستخدم أولًا.', 'error');
+                e.target.checked = false;
+                return;
+            }
             notificationSwitch.disabled = true;
             if (e.target.checked) {
                 await subscribeToNotifications();
@@ -1379,7 +1385,6 @@
         }
         
         async function saveSubscriptionToDB(subscription) {
-            // Convert the subscription object to a plain JSON object before saving
             const payload = subscription ? subscription.toJSON() : null;
             const { error } = await supabaseClient
                 .from('users')
@@ -1433,8 +1438,7 @@
                 showToast('تم تفعيل الإشعارات بنجاح!', 'success');
             } catch (error) {
                 console.error('An error occurred during the subscription process:', error);
-                // Display a more detailed error message to the user
-                showToast(`فشل التفعيل: ${error.name}`, 'error');
+                showToast(`فشل التفعيل: ${error.message || error}`, 'error');
                 if (notificationSwitch) notificationSwitch.checked = false;
             }
             await updateSubscriptionStatus();
