@@ -746,12 +746,15 @@
             const card = document.createElement('div');
             
             if (screenContext === 'archive-screen') {
-                let cardClasses = 'bg-white p-3 rounded-lg shadow';
+                let cardClasses = 'p-3 rounded-lg shadow'; // bg-white removed
                 if(item.type === 'tasks'){
-                    if (item.status === 'مكتملة') { cardClasses += ' border-r-4 border-blue-500'; } 
-                    else if (item.status === 'مؤرشفة') { cardClasses += ' border-r-4 border-orange-500'; }
+                    if (item.status === 'مكتملة') { 
+                        cardClasses += ' bg-blue-100 border-r-4 border-blue-500'; 
+                    } else if (item.status === 'مؤرشفة') { 
+                        cardClasses += ' bg-orange-100 border-r-4 border-orange-500'; 
+                    }
                 } else { // events
-                     cardClasses += ' border-r-4 border-gray-400';
+                     cardClasses += ' bg-gray-200 border-r-4 border-gray-400';
                 }
                 card.className = cardClasses;
                 card.innerHTML = `<p class="font-bold text-gray-800 truncate">${item.title}</p>`;
