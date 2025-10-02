@@ -70,20 +70,24 @@ self.addEventListener('push', function(event) {
   }
 
   const data = event.data?.json() ?? {};
-  const title = data.title || 'تنبيه جديد';
+  // The backend function will now send the app name (e.g., "إدارة المهام لخالد")
+  const title = data.appName || 'إدارة المهام'; 
   const message = data.body || 'لديك رسالة جديدة.';
-  const icon = './images/icon-192.png'; // Use a local icon
+  const icon = './images/icon-192.png'; 
 
   const options = {
     body: message,
     icon: icon,
     badge: './images/icon-192.png',
     vibrate: [100, 50, 100],
+    dir: 'rtl', // Set direction to Right-to-Left
+    lang: 'ar',   // Set language to Arabic
     data: {
-      url: data.url || './', // URL to open on click
+      url: data.url || './',
     },
   };
-
+  
+  // Use the title from the push data as the main notification title
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
