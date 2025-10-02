@@ -1396,11 +1396,12 @@
         async function subscribeToNotifications() {
             console.log("Attempting to subscribe to notifications...");
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                showToast('الإشعارات غير مدعومة في هذا المتصفح.', 'error');
+                showToast('الإشعارات غير مدعومة.', 'error');
+                if (notificationSwitch) notificationSwitch.checked = false;
                 return;
             }
             if (Notification.permission === 'denied') {
-                showToast('الإشعارات محظورة. يرجى تفعيلها من إعدادات المتصفح.', 'error');
+                showToast('الإشعارات محظورة.', 'error');
                 if (notificationSwitch) notificationSwitch.checked = false;
                 return;
             }
@@ -1422,22 +1423,22 @@
                 let subscription = await registration.pushManager.getSubscription();
                 
                 if (!subscription) {
-                    console.log("No existing subscription found, creating a new one...");
+                    console.log("No existing subscription, creating new one...");
                     subscription = await registration.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
                     });
-                    console.log("Successfully created new subscription:", subscription);
+                    console.log("New subscription created:", subscription);
                 } else {
-                    console.log("Found an existing subscription:", subscription);
+                    console.log("Found existing subscription:", subscription);
                 }
 
                 console.log("Saving subscription to DB...");
                 await saveSubscriptionToDB(subscription);
-                console.log("Subscription saved to DB successfully.");
+                console.log("Subscription saved to DB.");
                 showToast('تم تفعيل الإشعارات بنجاح!', 'success');
             } catch (error) {
-                console.error('An error occurred during the subscription process:', error);
+                console.error('Subscription process failed:', error);
                 showToast(`فشل التفعيل: ${error.message || error}`, 'error');
                 if (notificationSwitch) notificationSwitch.checked = false;
             }
@@ -1451,7 +1452,9 @@
                 const subscription = await registration.pushManager.getSubscription();
                 if (subscription) {
                     await subscription.unsubscribe();
-                    console.log("Unsubscribed successfully from push manager.");
+                    console.log("Unsubscribed from push manager.");
+                } else {
+                    console.log("No active subscription found to unsubscribe.");
                 }
                 await saveSubscriptionToDB(null);
                 console.log("Removed subscription from DB.");
