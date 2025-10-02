@@ -70,13 +70,13 @@ self.addEventListener('push', function(event) {
   }
 
   const data = event.data?.json() ?? {};
-  // The backend function will now send the app name (e.g., "إدارة المهام لخالد")
-  const title = data.appName || 'إدارة المهام'; 
-  const message = data.body || 'لديك رسالة جديدة.';
+  // The app name ("المهام") is now displayed by the browser/OS from the manifest.
+  // We will use the notification body as the main title for a cleaner look.
+  const title = data.body || 'لديك رسالة جديدة.'; // Use body as title
   const icon = './images/icon-192.png'; 
 
   const options = {
-    body: message,
+    // body is now empty, as content is in the title
     icon: icon,
     badge: './images/icon-192.png',
     vibrate: [100, 50, 100],
@@ -84,7 +84,7 @@ self.addEventListener('push', function(event) {
     lang: 'ar',   // Set language to Arabic
   };
   
-  // Use the title from the push data as the main notification title
+  // The main content of the notification is now the title.
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
