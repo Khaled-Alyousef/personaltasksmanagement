@@ -70,14 +70,13 @@ self.addEventListener('push', function(event) {
   }
 
   const data = event.data?.json() ?? {};
-  // Reverting to the standard format where the app name is the title.
-  // The OS/Browser may still show the app name and URL, this is a security feature.
-  const title = 'إدارة المهام'; 
-  const message = data.body || 'لديك رسالة جديدة.';
+  // The OS/Browser shows the app name. We will use the notification body
+  // as the main title to avoid repetition from the app's side.
+  const title = data.body || 'لديك رسالة جديدة.'; 
   const icon = './images/icon-192.png'; 
 
   const options = {
-    body: message, // The notification message is now in the body.
+    // The body is now empty, as the main content is in the title.
     icon: icon,
     badge: './images/icon-192.png',
     vibrate: [100, 50, 100],
