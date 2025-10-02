@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>المساعد الشخصي</title>
+    <title>إدارة المهام</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1E293B">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -443,8 +443,34 @@
         function formatTimeRemaining(targetDate, isStartDate = false, itemType = 'tasks') {
             const now = new Date();
             const target = new Date(targetDate);
-            const diff = target - now;
-            
+            const diff = target - now; // Negative if in the past
+
+            // Specific logic for events
+            if (itemType === 'events') {
+                // If the event time is in the past
+                if (diff <= 0) {
+                    const thirtyMinAfter = new Date(target.getTime() + 30 * 60 * 1000);
+                    // Check if it's within the 30-minute "now" window
+                    if (now <= thirtyMinAfter) {
+                        return "حان الموعد الآن";
+                    }
+                    
+                    // Check if it's still the same day
+                    const isSameDay = now.getFullYear() === target.getFullYear() &&
+                                      now.getMonth() === target.getMonth() &&
+                                      now.getDate() === target.getDate();
+
+                    if (isSameDay) {
+                        return "انتهى الموعد اليوم";
+                    }
+                    
+                    // If it's a past day (for archive screen)
+                    return "انتهى الموعد";
+                }
+            }
+
+
+            // Default logic for future events and all tasks
             const strings = {
                 tasks: {
                     prefix: isStartDate ? 'يبدأ خلال ' : 'ينتهي التنفيذ خلال ',
@@ -453,13 +479,12 @@
                 },
                 events: {
                     prefix: 'يحل الموعد خلال ',
-                    now: 'يحل الموعد الآن',
-                    ended: 'الموعد اليوم'
+                    now: 'يحل الموعد الآن', // For events starting within a minute
+                    ended: 'الموعد اليوم' // Fallback, not used much now
                 }
             };
             const s = strings[itemType];
 
-            if (diff <= 0) { return s.ended; }
             if (diff < 60000) { return s.now; }
             
             const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -725,7 +750,7 @@
                 if(item.type === 'tasks'){
                     if (item.status === 'مكتملة') { cardClasses += ' border-r-4 border-blue-500'; } 
                     else if (item.status === 'مؤرشفة') { cardClasses += ' border-r-4 border-orange-500'; }
-                } else {
+                } else { // events
                      cardClasses += ' border-r-4 border-gray-400';
                 }
                 card.className = cardClasses;
@@ -846,7 +871,7 @@
             mainGrid.className = 'grid grid-cols-1 gap-4 px-2 py-4';
             container.appendChild(mainGrid);
 
-            const createGroup = (title, items, type) => {
+            const createGroup = (title, items, groupType) => {
                 if (items.length === 0) return;
                 
                 const titleEl = document.createElement('h3');
@@ -858,14 +883,12 @@
                 if (currentViewMode === 'summary') {
                     contentGrid.className = 'grid grid-cols-1 gap-3';
                      items.forEach(item => {
-                        const itemType = item.due_datetime ? 'tasks' : 'events';
-                        contentGrid.appendChild(createSummaryCard({...item, type: itemType}, 'archive-screen'));
+                        contentGrid.appendChild(createSummaryCard({...item, type: groupType}, 'archive-screen'));
                     });
                 } else {
                     contentGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
                     items.forEach(item => {
-                        const itemType = item.due_datetime ? 'tasks' : 'events';
-                        contentGrid.appendChild(createCard({...item, type: itemType}, 'archive'));
+                        contentGrid.appendChild(createCard({...item, type: groupType}, 'archive'));
                     });
                 }
                 mainGrid.appendChild(contentGrid);
@@ -1353,7 +1376,6 @@
         }
         
         async function saveSubscriptionToDB(subscription) {
-            // Convert the subscription object to a plain JSON object before saving
             const payload = subscription ? subscription.toJSON() : null;
             const { error } = await supabaseClient
                 .from('users')
@@ -1363,66 +1385,72 @@
         }
 
         async function subscribeToNotifications() {
+            console.log("Attempting to subscribe to notifications...");
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
                 showToast('الإشعارات غير مدعومة في هذا المتصفح.', 'error');
                 return;
             }
             if (Notification.permission === 'denied') {
                 showToast('الإشعارات محظورة. يرجى تفعيلها من إعدادات المتصفح.', 'error');
-                notificationSwitch.checked = false; // Ensure switch is off
+                if (notificationSwitch) notificationSwitch.checked = false;
                 return;
             }
             try {
                 const registration = await navigator.serviceWorker.ready;
-                // Request permission if not already granted
+                console.log("Service Worker is ready.");
+
                 if (Notification.permission === 'default') {
+                    console.log("Requesting notification permission...");
                     const permission = await Notification.requestPermission();
                     if (permission !== 'granted') {
                         showToast('تم رفض إذن الإشعارات.', 'info');
                         if (notificationSwitch) notificationSwitch.checked = false;
                         return;
                     }
+                    console.log("Permission granted.");
                 }
                 
-                // 1. Get existing subscription, if any
                 let subscription = await registration.pushManager.getSubscription();
                 
-                // 2. If no subscription exists, create a new one
                 if (!subscription) {
-                    console.log("No existing subscription found, creating a new one.");
+                    console.log("No existing subscription found, creating a new one...");
                     subscription = await registration.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
                     });
+                    console.log("Successfully created new subscription:", subscription);
                 } else {
-                    console.log("Found an existing subscription.");
+                    console.log("Found an existing subscription:", subscription);
                 }
 
-                // 3. Save the subscription to Supabase
+                console.log("Saving subscription to DB...");
                 await saveSubscriptionToDB(subscription);
+                console.log("Subscription saved to DB successfully.");
                 showToast('تم تفعيل الإشعارات بنجاح!', 'success');
             } catch (error) {
-                console.error('Failed to subscribe to notifications:', error);
-                showToast('فشل تفعيل الإشعارات.', 'error');
+                console.error('An error occurred during the subscription process:', error);
+                // Display a more detailed error message to the user
+                showToast(`فشل التفعيل: ${error.name}`, 'error');
                 if (notificationSwitch) notificationSwitch.checked = false;
             }
             await updateSubscriptionStatus();
         }
         
         async function unsubscribeFromNotifications() {
+            console.log("Attempting to unsubscribe...");
             try {
                 const registration = await navigator.serviceWorker.ready;
                 const subscription = await registration.pushManager.getSubscription();
                 if (subscription) {
                     await subscription.unsubscribe();
+                    console.log("Unsubscribed successfully from push manager.");
                 }
-                // Save null to the database
                 await saveSubscriptionToDB(null);
+                console.log("Removed subscription from DB.");
                 showToast('تم كتم الإشعارات.', 'info');
             } catch (error) {
                 console.error('Failed to unsubscribe:', error);
                 showToast('فشل كتم الإشعارات.', 'error');
-                // Don't revert the switch, just update from DB
             }
              await updateSubscriptionStatus();
         }
