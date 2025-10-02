@@ -47,7 +47,10 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-               navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW reg failed: ', err));
+               // Professional Fix: Use a relative path and define the scope for robust registration.
+               navigator.serviceWorker.register('./sw.js', { scope: './' })
+                .then(reg => console.log('Service Worker registered successfully:', reg))
+                .catch(err => console.error('Service Worker registration failed:', err));
             });
         }
     </script>
