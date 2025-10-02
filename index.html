@@ -1379,6 +1379,7 @@
         }
         
         async function saveSubscriptionToDB(subscription) {
+            // Convert the subscription object to a plain JSON object before saving
             const payload = subscription ? subscription.toJSON() : null;
             const { error } = await supabaseClient
                 .from('users')
