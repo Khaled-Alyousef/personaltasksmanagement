@@ -100,12 +100,12 @@
             </div>
             <div class="flex items-center gap-4">
                  <button id="view-mode-toggle-btn" class="p-2 rounded-full hover:bg-slate-700 hidden" title="تغيير طريقة العرض"></button>
-                 <div class="flex items-center gap-2">
-                    <span class="text-sm">الإشعارات</span>
+                 <div class="flex flex-col items-center">
                     <label class="switch">
                         <input type="checkbox" id="notification-switch">
                         <span class="slider"></span>
                     </label>
+                    <span class="text-xs mt-1">الإشعارات</span>
                  </div>
                  <button id="exit-app-btn" class="p-2 rounded-full hover:bg-slate-700" title="الخروج من التطبيق">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
@@ -677,6 +677,10 @@
                 
                 const forecastData = await forecastRes.json();
                 const currentData = forecastData.list[0];
+                const nowTimestamp = Math.floor(Date.now() / 1000);
+                const sunrise = forecastData.city.sunrise;
+                const sunset = forecastData.city.sunset;
+                const isDay = nowTimestamp > sunrise && nowTimestamp < sunset;
 
                 const today = new Date().toISOString().split('T')[0];
                 const todayForecasts = forecastData.list.filter(item => item.dt_txt.startsWith(today));
@@ -694,7 +698,7 @@
                 weatherCard.innerHTML = `
                     <div class="flex items-center justify-between text-sm h-full">
                         <div class="flex items-center gap-3">
-                            ${getWeatherIconSVG(currentData.weather[0].icon)}
+                            ${getWeatherIconSVG(currentData.weather[0].icon, isDay)}
                             <div>
                                 <p class="text-2xl font-bold">${toIndianNumerals(Math.round(currentData.main.temp))}°</p>
                                 <p class="text-gray-500">${currentData.weather[0].description}</p>
@@ -816,13 +820,15 @@
                 </div>
                 ${progressHTML}
             `;
-            card.addEventListener('click', () => {
-                if(item.type === 'tasks') {
-                    openDetailsScreen('task', item.id);
-                } else {
-                    openUpdateScreen('events', item);
-                }
-            });
+            if (screenContext !== 'tasks-screen' && screenContext !== 'appointments-screen') {
+                 card.addEventListener('click', () => {
+                    if(item.type === 'tasks') {
+                        openDetailsScreen('task', item.id);
+                    } else {
+                        openUpdateScreen('events', item);
+                    }
+                });
+            }
             return card;
         }
 
@@ -951,8 +957,14 @@
 
         // --- Navigation & Screen State ---
         function switchScreen(screenName) {
+            const summaryDefaultScreens = ['appointments-screen', 'tasks-screen', 'execution-screen', 'archive-screen'];
+            if (summaryDefaultScreens.includes(screenName)) {
+                currentViewMode = 'summary';
+            } else {
+                currentViewMode = localStorage.getItem(`${screenName}_viewMode`) || 'summary';
+            }
+            
             currentActiveScreen = screenName;
-            currentViewMode = localStorage.getItem(`${screenName}_viewMode`) || 'summary';
             localStorage.setItem('lastActiveScreen', screenName);
             document.querySelectorAll('#screen-content > div').forEach(screen => screen.classList.add('hidden'));
             document.getElementById(screenName).classList.remove('hidden');
@@ -1362,15 +1374,35 @@
                 notificationSwitch.checked = false;
                 return;
             }
-            const { data, error } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
-            
-            if (error) {
-                console.error("Error checking subscription status:", error);
+            try {
+                const { data, error } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
+                if (error) throw error;
+                
+                const registration = await navigator.serviceWorker.ready;
+                const browserSubscription = await registration.pushManager.getSubscription();
+                const dbSubscription = data ? data.push_subscription : null;
+
+                if (dbSubscription && browserSubscription) {
+                    if (dbSubscription.endpoint !== browserSubscription.endpoint) {
+                        console.log("Subscription mismatch detected. Updating DB with current device's subscription.");
+                        await saveSubscriptionToDB(browserSubscription);
+                        notificationSwitch.checked = true;
+                    } else {
+                        notificationSwitch.checked = true;
+                    }
+                } else if (browserSubscription && !dbSubscription) {
+                    console.log("Browser subscription found but not in DB. Updating DB.");
+                    await saveSubscriptionToDB(browserSubscription);
+                    notificationSwitch.checked = true;
+                } else {
+                    notificationSwitch.checked = false;
+                }
+            } catch (err) {
+                console.error("Error during subscription status update:", err);
                 notificationSwitch.checked = false;
-            } else {
-                notificationSwitch.checked = data && data.push_subscription !== null;
             }
         }
+
 
         async function handleSubscriptionToggle(e) {
             if (!currentUser) {
