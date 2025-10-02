@@ -70,13 +70,14 @@ self.addEventListener('push', function(event) {
   }
 
   const data = event.data?.json() ?? {};
-  // The app name ("المهام") is now displayed by the browser/OS from the manifest.
-  // We will use the notification body as the main title for a cleaner look.
-  const title = data.body || 'لديك رسالة جديدة.'; // Use body as title
+  // Reverting to the standard format where the app name is the title.
+  // The OS/Browser may still show the app name and URL, this is a security feature.
+  const title = 'إدارة المهام'; 
+  const message = data.body || 'لديك رسالة جديدة.';
   const icon = './images/icon-192.png'; 
 
   const options = {
-    // body is now empty, as content is in the title
+    body: message, // The notification message is now in the body.
     icon: icon,
     badge: './images/icon-192.png',
     vibrate: [100, 50, 100],
@@ -84,7 +85,6 @@ self.addEventListener('push', function(event) {
     lang: 'ar',   // Set language to Arabic
   };
   
-  // The main content of the notification is now the title.
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
