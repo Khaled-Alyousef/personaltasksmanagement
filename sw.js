@@ -82,9 +82,6 @@ self.addEventListener('push', function(event) {
     vibrate: [100, 50, 100],
     dir: 'rtl', // Set direction to Right-to-Left
     lang: 'ar',   // Set language to Arabic
-    data: {
-      url: data.url || './',
-    },
   };
   
   // Use the title from the push data as the main notification title
@@ -95,7 +92,7 @@ self.addEventListener('push', function(event) {
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const urlToOpen = new URL(event.notification.data.url || './', self.location.origin).href;
+  const urlToOpen = new URL('./', self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({
