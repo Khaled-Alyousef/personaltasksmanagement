@@ -303,7 +303,8 @@
             const now = new Date();
             dueDate.setHours(0, 0, 0, 0);
             now.setHours(0, 0, 0, 0);
-            const diffTime = Math.abs(now - dueDate);
+            const diffTime = now - dueDate; // Only positive if in the past
+            if (diffTime <= 0) return 0;
             return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
         };
         function renderEmptyState(title, message) {
@@ -324,12 +325,12 @@
             
             const isOwner = item.owner === currentUser;
             const dateTimeOptions = { calendar: 'gregory', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-            const now = new Date();
+            
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
 
             if (item.type === 'tasks') {
-                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < now;
+                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < todayStart;
                 
                 let timeText = '';
                 if (isOverdue) {
@@ -472,6 +473,15 @@
                 }
             }
 
+            if (itemType === 'tasks' && !isStartDate && diff <= 0) {
+                const isSameDay = now.getFullYear() === target.getFullYear() &&
+                                  now.getMonth() === target.getMonth() &&
+                                  now.getDate() === target.getDate();
+                if (isSameDay) {
+                    return "انتهى اليوم";
+                }
+            }
+
 
             // Default logic for future events and all tasks
             const strings = {
@@ -556,13 +566,15 @@
             // --- 2. Agenda Timeline ---
             const agendaEvents = allData.events
                 .filter(e => { const d = new Date(e.event_date); return d >= todayStart && d <= todayEnd; })
-                .map(e => ({...e, type: 'events', sort_time: new Date(e.event_date)}));
+                .map(e => ({...e, type: 'events', sort_time: new Date(e.event_date)}))
+                .sort((a,b) => a.sort_time - b.sort_time);
             
             const agendaTasks = allData.tasks
                 .filter(t => t.status === 'تنفيذ' && new Date(t.due_datetime) >= todayStart)
-                .map(t => ({...t, type: 'tasks', sort_time: new Date(t.due_datetime)}));
+                .map(t => ({...t, type: 'tasks', sort_time: new Date(t.due_datetime)}))
+                .sort((a,b) => a.sort_time - b.sort_time);
 
-            const agendaItems = [...agendaEvents.sort((a,b) => a.sort_time - b.sort_time), ...agendaTasks.sort((a,b) => a.sort_time - b.sort_time)];
+            const agendaItems = [...agendaEvents, ...agendaTasks];
 
             const createTimelineItemHTML = (item) => {
                 let icon = '';
@@ -724,8 +736,9 @@
             const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
             
             let timeText = '';
-            const now = new Date();
-            const isOverdue = new Date(task.due_datetime) < now;
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const isOverdue = new Date(task.due_datetime) < todayStart;
 
             if (isOverdue) {
                 const days = daysOverdue(task.due_datetime);
@@ -771,10 +784,11 @@
             let timeText = '';
             let progressHTML = '';
             let cardClasses = 'p-3 rounded-lg shadow flex items-center gap-3 border-r-4';
-            const now = new Date();
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
 
             if (item.type === 'tasks') {
-                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < now;
+                const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < todayStart;
                 const actions = allData.task_actions.filter(a => a.task_id === item.id);
                 const completedActions = actions.filter(a => a.done).length;
                 const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
@@ -799,7 +813,6 @@
                 }
             } else { // events
                 const eventDate = new Date(item.event_date);
-                const todayStart = new Date(); todayStart.setHours(0,0,0,0);
                 const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
 
                 timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.event_date, true, 'events')}</p>`;
@@ -1394,7 +1407,7 @@
                     await saveSubscriptionToDB(browserSubscription);
                     notificationSwitch.checked = true;
                 } else {
-                    notificationSwitch.checked = false;
+                    notificationSwitch.checked = !!dbSubscription;
                 }
             } catch (err) {
                 console.error("Error during subscription status update:", err);
@@ -1510,6 +1523,13 @@
             appTitle.textContent = `إدارة المهام لـ${currentUser}`;
             currentViewMode = localStorage.getItem('defaultViewMode') || 'summary';
             updateDateTime();
+            
+            // If user was subscribed on another device, attempt to subscribe this one.
+            const { data: userSubData } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
+            if (userSubData && userSubData.push_subscription) {
+                 await subscribeToNotifications();
+            }
+
             updateSubscriptionStatus();
             setInterval(updateDateTime, 60000 * 5);
             setInterval(checkTaskTransitions, 60000 * 5);
