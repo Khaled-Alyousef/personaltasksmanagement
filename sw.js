@@ -1,29 +1,41 @@
-const CACHE_NAME = 'personal-assistant-cache-v1';
+const CACHE_NAME = 'personal-assistant-cache-v2';
+// CORE_ASSETS now only contains the essential local files for the app shell.
 const CORE_ASSETS = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    'https://cdn.tailwindcss.com',
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-    'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap'
+    './',
+    './index.html',
+    './manifest.json',
+    './images/icon-192.png',
+    './images/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
+    console.log('Service Worker: Install event in progress.');
     event.waitUntil(
         caches.open(CACHE_NAME)
-        .then((cache) => cache.addAll(CORE_ASSETS))
+        .then((cache) => {
+            console.log('Service Worker: Caching core assets.');
+            return cache.addAll(CORE_ASSETS);
+        })
         .then(() => self.skipWaiting())
+        .catch(error => console.error('Service Worker: Installation failed:', error))
     );
 });
 
 self.addEventListener('activate', (event) => {
+    console.log('Service Worker: Activate event in progress.');
     event.waitUntil(
         caches.keys().then((keys) => {
             return Promise.all(
                 keys.filter(key => key !== CACHE_NAME)
-                    .map(key => caches.delete(key))
+                    .map(key => {
+                        console.log(`Service Worker: Deleting old cache: ${key}`);
+                        return caches.delete(key);
+                    })
             );
-        }).then(() => self.clients.claim())
+        }).then(() => {
+            console.log('Service Worker: Now ready to handle fetches!');
+            return self.clients.claim();
+        })
     );
 });
 
@@ -31,17 +43,17 @@ self.addEventListener('fetch', (event) => {
     const req = event.request;
     const url = new URL(req.url);
 
-    // Ignore Supabase API calls and non-GET requests
-    if (url.origin.includes('supabase.co') || req.method !== 'GET') {
+    // Don't cache Supabase API calls or any other external resources.
+    // Let them go to the network directly.
+    if (url.origin !== self.location.origin || url.pathname.includes('supabase.co')) {
         return;
     }
 
+    // For local assets (HTML, manifest, etc.), use a cache-first strategy.
     event.respondWith(
       caches.match(req).then(cachedResponse => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(req).then(networkResponse => {
+        return cachedResponse || fetch(req).then(networkResponse => {
+          // Optionally, cache the new response for next time.
           return caches.open(CACHE_NAME).then(cache => {
             cache.put(req, networkResponse.clone());
             return networkResponse;
@@ -60,15 +72,15 @@ self.addEventListener('push', function(event) {
   const data = event.data?.json() ?? {};
   const title = data.title || 'تنبيه جديد';
   const message = data.body || 'لديك رسالة جديدة.';
-  const icon = data.icon || '/images/icon-192.png';
+  const icon = './images/icon-192.png'; // Use a local icon
 
   const options = {
     body: message,
     icon: icon,
-    badge: '/images/badge.png', // Optional: for Android notification bar
+    badge: './images/icon-192.png',
     vibrate: [100, 50, 100],
     data: {
-      url: data.url || '/', // URL to open on click
+      url: data.url || './', // URL to open on click
     },
   };
 
@@ -79,18 +91,23 @@ self.addEventListener('push', function(event) {
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const urlToOpen = event.notification.data.url || '/';
+  const urlToOpen = new URL(event.notification.data.url || './', self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({
       type: 'window',
       includeUncontrolled: true,
     }).then(clientList => {
-      if (clientList.length > 0) {
-        return clientList[0].focus().then(client => client.navigate(urlToOpen));
+      // If a window is already open, focus it and navigate.
+      for (const client of clientList) {
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus();
+        }
       }
-      return clients.openWindow(urlToOpen);
+      // Otherwise, open a new window.
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
     })
   );
 });
-
