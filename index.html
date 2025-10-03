@@ -47,7 +47,6 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-               // Professional Fix: Use a relative path and define the scope for robust registration.
                navigator.serviceWorker.register('./sw.js', { scope: './' })
                 .then(reg => console.log('Service Worker registered successfully:', reg))
                 .catch(err => console.error('Service Worker registration failed:', err));
@@ -382,7 +381,7 @@
                 if (eventDate < todayStart) { // Past
                     cardClasses += ' bg-gray-200';
                 } else if (eventDate >= todayStart && eventDate <= todayEnd) { // Today
-                    cardClasses += ' bg-purple-100'; // Change: Changed from green to purple
+                    cardClasses += ' bg-purple-100';
                 } else { // Future
                      cardClasses += ' bg-blue-100';
                 }
@@ -399,27 +398,23 @@
 
             const ownerHTML = `<div class="text-xs text-gray-400 mt-1">المالك: ${item.owner}</div>`;
 
-            let dynamicActions = '';
+            let completeAction = '', archiveAction = '';
             if (item.type === 'tasks') {
-                if (item.status === 'تخطيط') {
-                    dynamicActions = `<button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>`;
-                } else if (item.status === 'تنفيذ') {
-                    dynamicActions = `
-                        <button data-action="complete" class="p-2 text-gray-400 hover:text-green-500" title="اكتملت"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></button>
-                        <button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>
-                    `;
-                } else if (item.status === 'مكتملة' && context === 'archive') {
-                     dynamicActions = `<button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>`;
+                if (item.status === 'تنفيذ') {
+                    completeAction = `<button data-action="complete" class="p-2 text-gray-400 hover:text-green-500" title="اكتملت"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></button>`;
+                }
+                 if (item.status === 'تخطيط' || item.status === 'تنفيذ' || (item.status === 'مكتملة' && context === 'archive')) {
+                    archiveAction = `<button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>`;
                 }
             }
             
-            // Change: Reordered icons as requested
             actionsHTML = `
                 <div class="flex items-center justify-between w-full mt-2">
                     <div class="flex items-center">
                          ${item.type === 'tasks' ? `<button data-action="details" class="p-2 text-gray-400 hover:text-blue-500" title="تفاصيل"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.03 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg></button>` : ''}
                         <button data-action="share" class="p-2 text-gray-400 ${item.is_shared ? 'text-blue-500' : 'hover:text-blue-500'}" title="مشاركة" ${!isOwner ? 'disabled' : ''}><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg></button>
-                        ${dynamicActions}
+                        ${completeAction}
+                        ${archiveAction}
                     </div>
                     <div class="flex items-center">
                         <button data-action="edit" class="p-2 text-gray-400 hover:text-green-500" title="تعديل"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
@@ -452,56 +447,30 @@
             const target = new Date(targetDate);
             const diff = target - now; // Negative if in the past
 
-            // Specific logic for events
             if (itemType === 'events') {
-                // If the event time is in the past
                 if (diff <= 0) {
                     const thirtyMinAfter = new Date(target.getTime() + 30 * 60 * 1000);
-                    // Check if it's within the 30-minute "now" window
-                    if (now <= thirtyMinAfter) {
-                        return "حان الموعد الآن";
-                    }
+                    if (now <= thirtyMinAfter) return "حان الموعد الآن";
                     
-                    // Check if it's still the same day
-                    const isSameDay = now.getFullYear() === target.getFullYear() &&
-                                      now.getMonth() === target.getMonth() &&
-                                      now.getDate() === target.getDate();
-
-                    if (isSameDay) {
-                        return "انتهى الموعد اليوم";
-                    }
+                    const isSameDay = now.getFullYear() === target.getFullYear() && now.getMonth() === target.getMonth() && now.getDate() === target.getDate();
+                    if (isSameDay) return "انتهى الموعد اليوم";
                     
-                    // If it's a past day (for archive screen)
                     return "انتهى الموعد";
                 }
             }
 
             if (itemType === 'tasks' && !isStartDate && diff <= 0) {
-                const isSameDay = now.getFullYear() === target.getFullYear() &&
-                                  now.getMonth() === target.getMonth() &&
-                                  now.getDate() === target.getDate();
-                if (isSameDay) {
-                    return "انتهى اليوم";
-                }
+                const isSameDay = now.getFullYear() === target.getFullYear() && now.getMonth() === target.getMonth() && now.getDate() === target.getDate();
+                if (isSameDay) return "انتهى اليوم";
             }
 
-
-            // Default logic for future events and all tasks
             const strings = {
-                tasks: {
-                    prefix: isStartDate ? 'يبدأ خلال ' : 'ينتهي التنفيذ خلال ',
-                    now: isStartDate ? 'يبدأ الآن' : 'ينتهي الآن',
-                    ended: isStartDate ? 'بدأ التنفيذ' : 'انتهى الوقت'
-                },
-                events: {
-                    prefix: 'يحل الموعد خلال ',
-                    now: 'يحل الموعد الآن', // For events starting within a minute
-                    ended: 'الموعد اليوم' // Fallback, not used much now
-                }
+                tasks: { prefix: isStartDate ? 'يبدأ خلال ' : 'ينتهي التنفيذ خلال ', now: isStartDate ? 'يبدأ الآن' : 'ينتهي الآن' },
+                events: { prefix: 'يحل الموعد خلال ', now: 'يحل الموعد الآن' }
             };
             const s = strings[itemType];
 
-            if (diff < 60000) { return s.now; }
+            if (diff < 60000) return s.now;
             
             const days = Math.floor(diff / (1000 * 60 * 60 * 24));
             const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -511,10 +480,8 @@
 
             if (days > 0) {
                 result += `${toIndianNumerals(days)} ${days === 1 ? 'يوم' : (days === 2 ? 'يومين' : 'أيام')}`;
-                if (hours > 0) {
-                    result += ` و ${toIndianNumerals(hours)} ${hours === 1 ? 'ساعة' : 'ساعات'}`;
-                }
-                 return result;
+                if (hours > 0) result += ` و ${toIndianNumerals(hours)} ${hours === 1 ? 'ساعة' : 'ساعات'}`;
+                return result;
             }
             
             if (hours > 0) {
@@ -522,9 +489,7 @@
                 if (minutes > 0) result += ' و ';
             }
 
-            if (minutes > 0) {
-                result += `${toIndianNumerals(minutes)} دقيقة`;
-            }
+            if (minutes > 0) result += `${toIndianNumerals(minutes)} دقيقة`;
             
             return result.trim().replace(/ و$/, '');
         }
@@ -534,7 +499,6 @@
             container.innerHTML = '';
             const now = new Date(); const todayStart = new Date(); todayStart.setHours(0,0,0,0); const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
 
-            // --- 1. Top Section: Weather & Summary ---
             const topSection = document.createElement('div');
             topSection.className = 'col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6';
             
@@ -546,110 +510,50 @@
             topSection.innerHTML = `
                 <div id="dashboard-weather-card" class="bg-white p-3 rounded-lg shadow-md"></div>
                 <div class="grid grid-cols-3 gap-2">
-                    <div class="bg-purple-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center">
-                        <svg class="h-6 w-6 text-purple-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <p class="text-xl font-bold">${toIndianNumerals(todaysEventsCount)}</p>
-                        <p class="text-xs text-gray-600">مواعيد اليوم</p>
-                    </div>
-                    <div class="bg-green-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center">
-                        <svg class="h-6 w-6 text-green-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                        <p class="text-xl font-bold">${toIndianNumerals(onTrackTasksCount)}</p>
-                        <p class="text-xs text-gray-600">قيد التنفيذ</p>
-                    </div>
-                    <div class="bg-red-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center">
-                         <svg class="h-6 w-6 text-red-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        <p class="text-xl font-bold">${toIndianNumerals(overdueTasksCount)}</p>
-                        <p class="text-xs text-gray-600">متأخرة</p>
-                    </div>
-                </div>
-            `;
+                    <div class="bg-purple-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center"><svg class="h-6 w-6 text-purple-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><p class="text-xl font-bold">${toIndianNumerals(todaysEventsCount)}</p><p class="text-xs text-gray-600">مواعيد اليوم</p></div>
+                    <div class="bg-green-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center"><svg class="h-6 w-6 text-green-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg><p class="text-xl font-bold">${toIndianNumerals(onTrackTasksCount)}</p><p class="text-xs text-gray-600">قيد التنفيذ</p></div>
+                    <div class="bg-red-100 p-2 rounded-lg shadow flex flex-col items-center justify-center text-center"><svg class="h-6 w-6 text-red-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><p class="text-xl font-bold">${toIndianNumerals(overdueTasksCount)}</p><p class="text-xs text-gray-600">متأخرة</p></div>
+                </div>`;
             container.appendChild(topSection);
             fetchAndRenderWeather();
 
-            // --- 2. Agenda Timeline ---
-            const agendaEvents = allData.events
-                .filter(e => { const d = new Date(e.event_date); return d >= todayStart && d <= todayEnd; })
-                .map(e => ({...e, type: 'events', sort_time: new Date(e.event_date)}))
-                .sort((a,b) => a.sort_time - b.sort_time);
-            
-            const agendaTasks = allData.tasks
-                .filter(t => t.status === 'تنفيذ' && new Date(t.due_datetime) >= todayStart)
-                .map(t => ({...t, type: 'tasks', sort_time: new Date(t.due_datetime)}))
-                .sort((a,b) => a.sort_time - b.sort_time);
-
+            const agendaEvents = allData.events.filter(e => { const d = new Date(e.event_date); return d >= todayStart && d <= todayEnd; }).map(e => ({...e, type: 'events', sort_time: new Date(e.event_date)})).sort((a,b) => a.sort_time - b.sort_time);
+            const agendaTasks = allData.tasks.filter(t => t.status === 'تنفيذ' && new Date(t.due_datetime) >= todayStart).map(t => ({...t, type: 'tasks', sort_time: new Date(t.due_datetime)})).sort((a,b) => a.sort_time - b.sort_time);
             const agendaItems = [...agendaEvents, ...agendaTasks];
 
             const createTimelineItemHTML = (item) => {
-                let icon = '';
-                let timeDetails = '';
-                
+                let icon = '', timeDetails = '';
                 if (item.type === 'events') {
-                    const itemTime = new Date(item.sort_time);
-                    const timeStr = itemTime.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit'});
+                    const timeStr = new Date(item.sort_time).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit'});
                     icon = `<div class="bg-purple-500 ring-4 ring-white"><svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg></div>`;
                     timeDetails = `<p class="block mb-2 text-sm font-normal leading-none text-gray-500">${timeStr}</p>`;
-                } else { // tasks
+                } else {
                     icon = `<div class="bg-green-500 ring-4 ring-white"><svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></div>`;
                     timeDetails = `<p class="block text-xs font-normal leading-none text-gray-500">${formatTimeRemaining(item.due_datetime, false, 'tasks')}</p>`;
                 }
-
-                return `
-                    <div class="mb-6 mr-6">
-                        <span class="absolute flex items-center justify-center w-6 h-6 rounded-full -right-3">${icon}</span>
-                        <h4 class="flex items-center mb-1 text-md font-semibold text-gray-900">${item.title}</h4>
-                        ${timeDetails}
-                    </div>
-                `;
+                return `<div class="mb-6 mr-6"><span class="absolute flex items-center justify-center w-6 h-6 rounded-full -right-3">${icon}</span><h4 class="flex items-center mb-1 text-md font-semibold text-gray-900">${item.title}</h4>${timeDetails}</div>`;
             };
             
             const timelineContainer = document.createElement('div');
             timelineContainer.className = 'col-span-full bg-white p-4 rounded-lg shadow';
             let timelineContent = `<h3 class="font-bold text-lg mb-4">أجندة اليوم</h3>`;
             const agendaHTML = agendaItems.map(createTimelineItemHTML).join('');
-
-            if (agendaHTML) {
-                 timelineContent += `<div class="relative border-r-2 border-gray-200 mr-3">${agendaHTML}</div>`;
-            } else {
-                timelineContent += '<p class="text-gray-500 py-4 text-center">لا توجد عناصر في أجندة اليوم.</p>';
-            }
+            timelineContent += agendaHTML ? `<div class="relative border-r-2 border-gray-200 mr-3">${agendaHTML}</div>` : '<p class="text-gray-500 py-4 text-center">لا توجد عناصر في أجندة اليوم.</p>';
             timelineContainer.innerHTML = timelineContent;
             container.appendChild(timelineContainer);
 
-            // --- 3. Overdue tasks section ---
-            const overdueTasks = allData.tasks
-                .filter(t => new Date(t.due_datetime) < todayStart && t.status === 'تنفيذ')
-                .sort((a,b) => new Date(a.due_datetime) - new Date(b.due_datetime));
-
+            const overdueTasks = allData.tasks.filter(t => new Date(t.due_datetime) < todayStart && t.status === 'تنفيذ').sort((a,b) => new Date(a.due_datetime) - new Date(b.due_datetime));
             if (overdueTasks.length > 0) {
                  const overdueContainer = document.createElement('div');
                  overdueContainer.className = 'col-span-full';
-                 let overdueContent = `<h3 class="font-bold text-lg mb-2 text-red-800">مهام متأخرة</h3>`;
-                 overdueContent += '<div class="space-y-3">';
-
+                 let overdueContent = `<h3 class="font-bold text-lg mb-2 text-red-800">مهام متأخرة</h3><div class="space-y-3">`;
                  overdueTasks.forEach(task => {
                     const actions = allData.task_actions.filter(a => a.task_id === task.id);
-                    const completedActions = actions.filter(a => a.done).length;
-                    const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
+                    const progress = actions.length > 0 ? Math.round((actions.filter(a => a.done).length / actions.length) * 100) : 0;
                     const days = daysOverdue(task.due_datetime);
-
-                    overdueContent += `
-                        <div class="bg-red-100 p-3 rounded-lg shadow flex items-center gap-3 border-r-4 border-red-500">
-                            <div class="flex-shrink-0">
-                                <svg class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            </div>
-                            <div class="flex-grow">
-                                <p class="font-bold text-gray-800">${task.title}</p>
-                                <p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</p>
-                            </div>
-                            <div class="flex-shrink-0 text-center">
-                                <p class="font-bold text-lg text-red-500">${toIndianNumerals(progress)}%</p>
-                                <p class="text-xs text-gray-500">إنجاز</p>
-                            </div>
-                        </div>
-                    `;
+                    overdueContent += `<div class="bg-red-100 p-3 rounded-lg shadow flex items-center gap-3 border-r-4 border-red-500"><div class="flex-shrink-0"><svg class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div><div class="flex-grow"><p class="font-bold text-gray-800">${task.title}</p><p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</p></div><div class="flex-shrink-0 text-center"><p class="font-bold text-lg text-red-500">${toIndianNumerals(progress)}%</p><p class="text-xs text-gray-500">إنجاز</p></div></div>`;
                  });
-                 overdueContent += '</div>';
-                 overdueContainer.innerHTML = overdueContent;
+                 overdueContainer.innerHTML = overdueContent + '</div>';
                  container.appendChild(overdueContainer);
             }
         }
@@ -668,13 +572,10 @@
                 '13d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="24" y1="46" x2="40" y2="46" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="38" x2="32" y2="54" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="27" y1="41" x2="37" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="37" y1="41" x2="27" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
                 '50d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><line x1="12" y1="24" x2="52" y2="24" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="32" x2="52" y2="32" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="40" x2="52" y2="40" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`
             };
-            const genericDay = iconMap['02d'];
-            const genericNight = iconMap['02n'];
+            const genericDay = iconMap['02d'], genericNight = iconMap['02n'];
             const generic = isDay ? genericDay : genericNight;
-
             const key = iconCode.slice(0, 2) + (isDay ? 'd' : 'n');
             const specificKey = iconCode.slice(0, 2) + 'd'; 
-            
             return iconMap[key] || iconMap[specificKey] || generic;
         }
 
@@ -682,50 +583,19 @@
             const weatherCard = document.getElementById('dashboard-weather-card');
             if (!weatherCard) return;
             weatherCard.innerHTML = `<div class="skeleton-loader h-full w-full"></div>`;
-
             try {
-                const FORECAST_URL = `https://api.openweathermap.org/data/2.5/forecast?lat=${RIYADH_COORDS.lat}&lon=${RIYADH_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric&lang=ar`;
+                const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${RIYADH_COORDS.lat}&lon=${RIYADH_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric&lang=ar`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Weather API fetch failed');
+                const data = await res.json();
+                const current = data.list[0];
+                const now = Date.now() / 1000;
+                const isDay = now > data.city.sunrise && now < data.city.sunset;
+                const todayForecasts = data.list.filter(item => item.dt_txt.startsWith(new Date().toISOString().split('T')[0]));
+                const todayMin = Math.min(...todayForecasts.map(f => f.main.temp_min), current.main.temp_min);
+                const todayMax = Math.max(...todayForecasts.map(f => f.main.temp_max), current.main.temp_max);
                 
-                const forecastRes = await fetch(FORECAST_URL);
-                if (!forecastRes.ok) throw new Error('Weather API fetch failed');
-                
-                const forecastData = await forecastRes.json();
-                const currentData = forecastData.list[0];
-                const nowTimestamp = Math.floor(Date.now() / 1000);
-                const sunrise = forecastData.city.sunrise;
-                const sunset = forecastData.city.sunset;
-                const isDay = nowTimestamp > sunrise && nowTimestamp < sunset;
-
-                const today = new Date().toISOString().split('T')[0];
-                const todayForecasts = forecastData.list.filter(item => item.dt_txt.startsWith(today));
-                let todayMin = 100, todayMax = -100;
-                 if (todayForecasts.length > 0) {
-                    todayForecasts.forEach(f => {
-                        if (f.main.temp_min < todayMin) todayMin = f.main.temp_min;
-                        if (f.main.temp_max > todayMax) todayMax = f.main.temp_max;
-                    });
-                } else {
-                    todayMin = currentData.main.temp_min;
-                    todayMax = currentData.main.temp_max;
-                }
-                
-                weatherCard.innerHTML = `
-                    <div class="flex items-center justify-between text-sm h-full">
-                        <div class="flex items-center gap-3">
-                            ${getWeatherIconSVG(currentData.weather[0].icon, isDay)}
-                            <div>
-                                <p class="text-2xl font-bold">${toIndianNumerals(Math.round(currentData.main.temp))}°</p>
-                                <p class="text-gray-500">${currentData.weather[0].description}</p>
-                            </div>
-                        </div>
-                         <div class="text-left text-xs space-y-1">
-                            <p><strong>المحسوسة:</strong> ${toIndianNumerals(Math.round(currentData.main.feels_like))}°</p>
-                            <p><strong>الرطوبة:</strong> ${toIndianNumerals(currentData.main.humidity)}%</p>
-                            <p><strong>العظمى:</strong> ${toIndianNumerals(Math.round(todayMax))}°</p>
-                            <p><strong>الصغرى:</strong> ${toIndianNumerals(Math.round(todayMin))}°</p>
-                        </div>
-                    </div>`;
-
+                weatherCard.innerHTML = `<div class="flex items-center justify-between text-sm h-full"><div class="flex items-center gap-3">${getWeatherIconSVG(current.weather[0].icon, isDay)}<div><p class="text-2xl font-bold">${toIndianNumerals(Math.round(current.main.temp))}°</p><p class="text-gray-500">${current.weather[0].description}</p></div></div><div class="text-left text-xs space-y-1"><p><strong>المحسوسة:</strong> ${toIndianNumerals(Math.round(current.main.feels_like))}°</p><p><strong>الرطوبة:</strong> ${toIndianNumerals(current.main.humidity)}%</p><p><strong>العظمى:</strong> ${toIndianNumerals(Math.round(todayMax))}°</p><p><strong>الصغرى:</strong> ${toIndianNumerals(Math.round(todayMin))}°</p></div></div>`;
             } catch (error) { 
                 console.error("Weather Error:", error);
                 weatherCard.innerHTML = '<p class="text-center text-red-500">فشل تحميل الطقس.</p>';
@@ -733,35 +603,12 @@
         }
         function createExecutionSummaryCard(task) {
             const card = document.createElement('div');
-            
             const actions = allData.task_actions.filter(a => a.task_id === task.id);
-            const completedActions = actions.filter(a => a.done).length;
-            const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
-            
-            let timeText = '';
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
-            const isOverdue = new Date(task.due_datetime) < todayStart;
-
-            if (isOverdue) {
-                const days = daysOverdue(task.due_datetime);
-                timeText = `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</p>`;
-                card.className = 'bg-red-100 p-3 rounded-lg shadow flex items-center gap-3 border-r-4 border-red-500';
-            } else {
-                timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(task.due_datetime, false, 'tasks')}</p>`;
-                card.className = 'bg-green-100 p-3 rounded-lg shadow flex items-center gap-3 border-r-4 border-green-500';
-            }
-
-            card.innerHTML = `
-                <div class="flex-grow min-w-0">
-                    <p class="font-bold text-gray-800">${task.title}</p>
-                    ${timeText}
-                </div>
-                <div class="flex-shrink-0 text-center">
-                    <p class="font-bold text-lg ${isOverdue ? 'text-red-500' : 'text-green-600'}">${toIndianNumerals(progress)}%</p>
-                    <p class="text-xs text-gray-500">إنجاز</p>
-                </div>
-            `;
+            const progress = actions.length > 0 ? Math.round((actions.filter(a => a.done).length / actions.length) * 100) : 0;
+            const isOverdue = new Date(task.due_datetime) < new Date(new Date().setHours(0,0,0,0));
+            const timeText = isOverdue ? `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(daysOverdue(task.due_datetime))} ${daysOverdue(task.due_datetime) > 1 ? 'أيام' : 'يوم'}</p>` : `<p class="text-sm text-gray-500">${formatTimeRemaining(task.due_datetime, false, 'tasks')}</p>`;
+            card.className = `${isOverdue ? 'bg-red-100 border-red-500' : 'bg-green-100 border-green-500'} p-3 rounded-lg shadow flex items-center gap-3 border-r-4`;
+            card.innerHTML = `<div class="flex-grow min-w-0"><p class="font-bold text-gray-800">${task.title}</p>${timeText}</div><div class="flex-shrink-0 text-center"><p class="font-bold text-lg ${isOverdue ? 'text-red-500' : 'text-green-600'}">${toIndianNumerals(progress)}%</p><p class="text-xs text-gray-500">إنجاز</p></div>`;
             return card;
         }
 
@@ -769,109 +616,66 @@
             const card = document.createElement('div');
             
             if (screenContext === 'archive-screen') {
-                let cardClasses = 'p-3 rounded-lg shadow'; // bg-white removed
-                if(item.type === 'tasks'){
-                    if (item.status === 'مكتملة') { 
-                        cardClasses += ' bg-blue-100 border-r-4 border-blue-500'; 
-                    } else if (item.status === 'مؤرشفة') { 
-                        cardClasses += ' bg-orange-100 border-r-4 border-orange-500'; 
-                    }
-                } else { // events
-                     cardClasses += ' bg-gray-200 border-r-4 border-gray-400';
-                }
+                let cardClasses = 'p-3 rounded-lg shadow';
+                if(item.type === 'tasks') cardClasses += item.status === 'مكتملة' ? ' bg-blue-100 border-r-4 border-blue-500' : ' bg-orange-100 border-r-4 border-orange-500';
+                else cardClasses += ' bg-gray-200 border-r-4 border-gray-400';
                 card.className = cardClasses;
                 card.innerHTML = `<p class="font-bold text-gray-800 truncate">${item.title}</p>`;
                 return card;
             }
 
-            let timeText = '';
-            let progressHTML = '';
-            let cardClasses = 'p-3 rounded-lg shadow flex items-center gap-3 border-r-4';
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
+            let timeText = '', progressHTML = '', cardClasses = 'p-3 rounded-lg shadow flex items-center gap-3 border-r-4';
+            const todayStart = new Date(); todayStart.setHours(0,0,0,0);
 
             if (item.type === 'tasks') {
                 const isOverdue = item.status === 'تنفيذ' && new Date(item.due_datetime) < todayStart;
                 const actions = allData.task_actions.filter(a => a.task_id === item.id);
-                const completedActions = actions.filter(a => a.done).length;
-                const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
+                const progress = actions.length > 0 ? Math.round((actions.filter(a => a.done).length / actions.length) * 100) : 0;
                 
                 if (item.status === 'تخطيط') {
                     timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.start_datetime, true, 'tasks')}</p>`;
                     cardClasses += ' bg-white border-gray-300';
                 } else if (item.status === 'تنفيذ') {
-                     progressHTML = `
-                        <div class="flex-shrink-0 text-center">
-                            <p class="font-bold text-lg ${isOverdue ? 'text-red-600' : 'text-green-600'}">${toIndianNumerals(progress)}%</p>
-                            <p class="text-xs text-gray-500">إنجاز</p>
-                        </div>`;
+                    progressHTML = `<div class="flex-shrink-0 text-center"><p class="font-bold text-lg ${isOverdue ? 'text-red-600' : 'text-green-600'}">${toIndianNumerals(progress)}%</p><p class="text-xs text-gray-500">إنجاز</p></div>`;
                     if (isOverdue) {
-                        const days = daysOverdue(item.due_datetime);
-                        timeText = `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(days)} ${days > 1 ? 'أيام' : 'يوم'}</p>`;
+                        timeText = `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(daysOverdue(item.due_datetime))} ${daysOverdue(item.due_datetime) > 1 ? 'أيام' : 'يوم'}</p>`;
                         cardClasses += ' bg-red-100 border-red-500';
-                    } else { // On track execution
+                    } else {
                         timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.due_datetime, false, 'tasks')}</p>`;
                         cardClasses += ' bg-green-100 border-green-500';
                     }
                 }
-            } else { // events
+            } else {
                 const eventDate = new Date(item.event_date);
                 const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
-
                 timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.event_date, true, 'events')}</p>`;
-                
-                if (eventDate >= todayStart && eventDate <= todayEnd) { // Today
-                    cardClasses += ' bg-purple-100 border-purple-500'; // Change: Changed from green to purple
-                } else { // Future
-                     cardClasses += ' bg-blue-100 border-blue-500';
-                }
+                cardClasses += (eventDate >= todayStart && eventDate <= todayEnd) ? ' bg-purple-100 border-purple-500' : ' bg-blue-100 border-blue-500';
             }
 
             card.className = cardClasses;
-            card.innerHTML = `
-                <div class="flex-grow min-w-0">
-                    <p class="font-bold text-gray-800 truncate">${item.title}</p>
-                    ${timeText}
-                </div>
-                ${progressHTML}
-            `;
+            card.innerHTML = `<div class="flex-grow min-w-0"><p class="font-bold text-gray-800 truncate">${item.title}</p>${timeText}</div>${progressHTML}`;
             if (screenContext !== 'tasks-screen' && screenContext !== 'appointments-screen') {
-                 card.addEventListener('click', () => {
-                    if(item.type === 'tasks') {
-                        openDetailsScreen('task', item.id);
-                    } else {
-                        openUpdateScreen('events', item);
-                    }
-                });
+                 card.addEventListener('click', () => item.type === 'tasks' ? openDetailsScreen('task', item.id) : openUpdateScreen('events', item));
             }
             return card;
         }
 
         function renderExecutionScreen() {
             const container = document.getElementById('execution-screen');
-            container.innerHTML = '';
             const items = allData.tasks.filter(t => t.status === 'تنفيذ').sort((a,b) => new Date(a.due_datetime) - new Date(b.due_datetime));
-
-            if (items.length === 0) {
-                container.innerHTML = renderEmptyState("لا توجد مهام قيد التنفيذ", "المهام المجدولة ستظهر هنا.");
-                return;
-            }
-
+            if (items.length === 0) { container.innerHTML = renderEmptyState("لا توجد مهام قيد التنفيذ", "المهام المجدولة ستظهر هنا."); return; }
             const contentGrid = document.createElement('div');
-            container.appendChild(contentGrid);
-
-             if (currentViewMode === 'summary') {
+            container.innerHTML = ''; container.appendChild(contentGrid);
+            if (currentViewMode === 'summary') {
                 contentGrid.className = 'grid grid-cols-1 gap-3 px-2 py-4';
                 items.forEach(item => contentGrid.appendChild(createExecutionSummaryCard(item)));
-            } else { // detailed
+            } else {
                 contentGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-2';
                 items.forEach(item => contentGrid.appendChild(createCard({...item, type: 'tasks'})));
             }
         }
         function renderAppointmentsScreen() {
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
-            const items = allData.events.filter(e => new Date(e.event_date) >= todayStart);
+            const items = allData.events.filter(e => new Date(e.event_date) >= new Date(new Date().setHours(0,0,0,0)));
             renderScreenWithViewMode('appointments-screen', items, "لا توجد مواعيد قادمة", "أضف موعداً جديداً لعرضه هنا.", 'events', (a,b) => new Date(a.event_date) - new Date(b.event_date));
         }
         function renderTasksScreen() { 
@@ -880,48 +684,24 @@
         
         function renderArchiveScreen() {
             const container = document.getElementById('archive-screen');
-            container.innerHTML = '';
-            
-            const now = new Date();
-            const todayStart = new Date(now);
-            todayStart.setHours(0, 0, 0, 0);
-
+            const todayStart = new Date(); todayStart.setHours(0,0,0,0);
             const completedTasks = allData.tasks.filter(t => t.status === 'مكتملة').sort((a,b) => new Date(b.status_updated_at) - new Date(a.status_updated_at));
             const archivedTasks = allData.tasks.filter(t => t.status === 'مؤرشفة').sort((a,b) => new Date(b.status_updated_at) - new Date(a.status_updated_at));
             const pastEvents = allData.events.filter(e => new Date(e.event_date) < todayStart).sort((a,b) => new Date(b.event_date) - new Date(a.event_date));
 
-            if (completedTasks.length === 0 && archivedTasks.length === 0 && pastEvents.length === 0) {
-                container.innerHTML = renderEmptyState("السجل فارغ", "المهام والمواعيد المنتهية ستظهر هنا.");
-                return;
-            }
-
+            if (completedTasks.length === 0 && archivedTasks.length === 0 && pastEvents.length === 0) { container.innerHTML = renderEmptyState("السجل فارغ", "المهام والمواعيد المنتهية ستظهر هنا."); return; }
             const mainGrid = document.createElement('div');
             mainGrid.className = 'grid grid-cols-1 gap-4 px-2 py-4';
-            container.appendChild(mainGrid);
+            container.innerHTML = ''; container.appendChild(mainGrid);
 
             const createGroup = (title, items, groupType) => {
                 if (items.length === 0) return;
-                
-                const titleEl = document.createElement('h3');
-                titleEl.className = 'font-bold text-xl mb-3 col-span-full';
-                titleEl.textContent = title;
-                mainGrid.appendChild(titleEl);
-
+                mainGrid.innerHTML += `<h3 class="font-bold text-xl mb-3 col-span-full">${title}</h3>`;
                 const contentGrid = document.createElement('div');
-                if (currentViewMode === 'summary') {
-                    contentGrid.className = 'grid grid-cols-1 gap-3';
-                     items.forEach(item => {
-                        contentGrid.appendChild(createSummaryCard({...item, type: groupType}, 'archive-screen'));
-                    });
-                } else {
-                    contentGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
-                    items.forEach(item => {
-                        contentGrid.appendChild(createCard({...item, type: groupType}, 'archive'));
-                    });
-                }
+                contentGrid.className = currentViewMode === 'summary' ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+                items.forEach(item => contentGrid.appendChild(currentViewMode === 'summary' ? createSummaryCard({...item, type: groupType}, 'archive-screen') : createCard({...item, type: groupType}, 'archive')));
                 mainGrid.appendChild(contentGrid);
             };
-
             createGroup('المهام المكتملة', completedTasks, 'tasks');
             createGroup('المهام المؤرشفة', archivedTasks, 'tasks');
             createGroup('المواعيد المنتهية', pastEvents, 'events');
@@ -929,60 +709,37 @@
 
         function renderScreenWithViewMode(screenId, items, emptyTitle, emptyMessage, type, sortFn) {
             const container = document.getElementById(screenId);
-            container.innerHTML = '';
             const sortedItems = items.sort(sortFn);
-
-            if (sortedItems.length === 0) {
-                container.innerHTML = renderEmptyState(emptyTitle, emptyMessage);
-                return;
-            }
-
+            if (sortedItems.length === 0) { container.innerHTML = renderEmptyState(emptyTitle, emptyMessage); return; }
             const contentGrid = document.createElement('div');
-            container.appendChild(contentGrid);
-
+            container.innerHTML = ''; container.appendChild(contentGrid);
             if (currentViewMode === 'summary') {
                 contentGrid.className = 'grid grid-cols-1 gap-3 px-2 py-4';
                 sortedItems.forEach(item => contentGrid.appendChild(createSummaryCard({...item, type}, screenId)));
-            } else { // detailed
+            } else {
                 contentGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-2';
                 sortedItems.forEach(item => contentGrid.appendChild(createCard({...item, type})));
             }
         }
         
         function rerenderActiveScreen() {
-            const screens = {
-                'dashboard-screen': renderDashboardScreen, 'appointments-screen': renderAppointmentsScreen,
-                'tasks-screen': renderTasksScreen, 'execution-screen': renderExecutionScreen,
-                'archive-screen': renderArchiveScreen,
-            };
-            
-            if (currentActiveScreen === 'dashboard-screen') {
-                weatherContainer.classList.remove('hidden');
-                viewModeToggleBtn.classList.add('hidden');
-                fetchAndRenderWeather();
-            } else {
-                weatherContainer.classList.add('hidden');
-                viewModeToggleBtn.classList.remove('hidden');
-            }
+            const screens = { 'dashboard-screen': renderDashboardScreen, 'appointments-screen': renderAppointmentsScreen, 'tasks-screen': renderTasksScreen, 'execution-screen': renderExecutionScreen, 'archive-screen': renderArchiveScreen };
+            const isDashboard = currentActiveScreen === 'dashboard-screen';
+            weatherContainer.classList.toggle('hidden', !isDashboard);
+            viewModeToggleBtn.classList.toggle('hidden', isDashboard);
+            if(isDashboard) fetchAndRenderWeather();
             updateViewToggleIcon();
-
             if (screens[currentActiveScreen]) screens[currentActiveScreen]();
             updateFab();
         }
 
         // --- Navigation & Screen State ---
         function switchScreen(screenName) {
-            const summaryDefaultScreens = ['appointments-screen', 'tasks-screen', 'execution-screen', 'archive-screen'];
-            if (summaryDefaultScreens.includes(screenName)) {
-                currentViewMode = 'summary';
-            } else {
-                currentViewMode = localStorage.getItem(`${screenName}_viewMode`) || 'summary';
-            }
-            
+            currentViewMode = ['dashboard-screen'].includes(screenName) ? 'detailed' : 'summary';
             currentActiveScreen = screenName;
             localStorage.setItem('lastActiveScreen', screenName);
-            document.querySelectorAll('#screen-content > div').forEach(screen => screen.classList.add('hidden'));
-            document.getElementById(screenName).classList.remove('hidden');
+            document.querySelectorAll('#screen-content > div').forEach(s => s.classList.add('hidden'));
+            document.getElementById(screenName)?.classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const isNavBtnForScreen = btn.dataset.screen === screenName;
                 btn.classList.toggle('text-white', isNavBtnForScreen);
@@ -1006,16 +763,16 @@
 
         function updateFab() {
             fabContainer.innerHTML = '';
-            const fabMapping = {
+            const fabMap = {
                 'tasks-screen': { type: 'tasks', icon: `<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>` },
                 'appointments-screen': { type: 'events', icon: `<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>` }
             };
-            const fabConfig = fabMapping[currentActiveScreen];
-            if (fabConfig) {
+            const config = fabMap[currentActiveScreen];
+            if (config) {
                 const fab = document.createElement('button');
                 fab.className = "fixed z-30 bottom-24 left-4 bg-blue-600 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-110";
-                fab.innerHTML = fabConfig.icon;
-                fab.addEventListener('click', () => openUpdateScreen(fabConfig.type, {}));
+                fab.innerHTML = config.icon;
+                fab.addEventListener('click', () => openUpdateScreen(config.type, {}));
                 fabContainer.appendChild(fab);
             }
         }
@@ -1027,65 +784,33 @@
             fabContainer.classList.add('hidden');
             detailsViewContainer.innerHTML = `
                 <header class="bg-slate-700 text-white p-3 flex items-center gap-3 flex-shrink-0">
-                    <button id="back-btn" class="p-2 rounded-full hover:bg-slate-600">
-                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                    </button>
+                    <button id="back-btn" class="p-2 rounded-full hover:bg-slate-600"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button>
                     <h2 class="text-xl font-bold">${data.id ? 'تعديل' : 'إضافة'} ${type === 'tasks' ? 'مهمة' : 'موعد'}</h2>
                 </header>
-                <div class="flex-grow overflow-y-auto">
-                    <form id="data-form" class="bg-white p-4 space-y-2 h-full flex flex-col">
-                        <div id="form-fields" class="flex-grow space-y-2 pt-6"></div>
-                        <input type="hidden" id="edit-id" value="${data?.id || ''}">
-                        <div class="flex-shrink-0 flex justify-between items-center gap-2 pt-2 border-t">
-                             <div class="flex items-center gap-2">
-                                <label for="is_shared" class="text-sm">مشاركة</label>
-                                <label class="switch">
-                                    <input type="checkbox" id="is_shared" name="is_shared" ${data.is_shared ? 'checked' : ''}>
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            <button type="submit" class="bg-blue-600 text-white px-5 py-2 text-sm rounded-md hover:bg-blue-700">حفظ</button>
-                        </div>
-                    </form>
-                </div>`;
+                <div class="flex-grow overflow-y-auto"><form id="data-form" class="bg-white p-4 space-y-2 h-full flex flex-col"><div id="form-fields" class="flex-grow space-y-2 pt-6"></div><input type="hidden" id="edit-id" value="${data?.id || ''}"><div class="flex-shrink-0 flex justify-between items-center gap-2 pt-2 border-t"><div class="flex items-center gap-2"><label for="is_shared" class="text-sm">مشاركة</label><label class="switch"><input type="checkbox" id="is_shared" name="is_shared" ${data.is_shared ? 'checked' : ''}><span class="slider"></span></label></div><button type="submit" class="bg-blue-600 text-white px-5 py-2 text-sm rounded-md hover:bg-blue-700">حفظ</button></div></form></div>`;
             generateFormFields(type, data);
             detailsViewContainer.querySelector('#back-btn').addEventListener('click', () => switchScreen(currentActiveScreen));
-            const form = detailsViewContainer.querySelector('#data-form');
-            form.addEventListener('submit', (e) => handleFormSubmit(e, type));
+            detailsViewContainer.querySelector('#data-form').addEventListener('submit', (e) => handleFormSubmit(e, type));
             if(type === 'tasks') {
-                const startDateInput = form.querySelector('[name="start_datetime"]');
-                const dueDateInput = form.querySelector('[name="due_datetime"]');
+                const startInput = detailsViewContainer.querySelector('[name="start_datetime"]');
+                const dueInput = detailsViewContainer.querySelector('[name="due_datetime"]');
                 const now = toLocalISOString(new Date()).slice(0, 16);
-                
-                if (startDateInput.value < now) startDateInput.min = startDateInput.value; else startDateInput.min = now;
-                if (dueDateInput.value < now) dueDateInput.min = dueDateInput.value; else dueDateInput.min = now;
-
-                startDateInput.addEventListener('change', () => {
-                    if (startDateInput.value) {
-                       dueDateInput.min = startDateInput.value;
-                    }
-                });
-                dueDateInput.addEventListener('change', () => {
-                     if (dueDateInput.value < startDateInput.value) {
-                        showToast('تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ البدء.', 'error');
-                        dueDateInput.value = startDateInput.value;
-                    }
-                });
+                startInput.min = startInput.value < now ? startInput.value : now;
+                dueInput.min = dueInput.value < now ? dueInput.value : now;
+                startInput.addEventListener('change', () => { if(startInput.value) dueInput.min = startInput.value; });
+                dueInput.addEventListener('change', () => { if(dueInput.value < startInput.value) { showToast('تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ البدء.', 'error'); dueInput.value = startInput.value; } });
             }
         }
 
         function generateFormFields(type, data) {
             const container = detailsViewContainer.querySelector('#form-fields');
-            let fieldsHTML = '';
             const createField = (label, inputHTML) => `<div class="form-field">${inputHTML}<label>${label}</label></div>`;
+            let fieldsHTML = createField(`عنوان ال${type === 'tasks' ? 'مهمة' : 'موعد'}`, `<input type="text" name="title" required value="${data.title||''}" placeholder=" ">`);
+            fieldsHTML += createField('الوصف', `<textarea name="description" placeholder=" ">${data.description||''}</textarea>`);
             if (type === 'tasks') {
-                fieldsHTML += createField('عنوان المهمة', `<input type="text" name="title" required value="${data.title||''}" placeholder=" ">`);
-                fieldsHTML += createField('الوصف', `<textarea name="description" placeholder=" ">${data.description||''}</textarea>`);
                 fieldsHTML += createField('تاريخ البدء', `<input type="datetime-local" name="start_datetime" class="${data.start_datetime ? 'has-value' : ''}" value="${toLocalISOString(data.start_datetime)}">`);
                 fieldsHTML += createField('تاريخ الانتهاء', `<input type="datetime-local" name="due_datetime" required class="${data.due_datetime ? 'has-value' : ''}" value="${toLocalISOString(data.due_datetime)}">`);
-            } else { // events
-                fieldsHTML += createField('عنوان الموعد', `<input type="text" name="title" required value="${data.title||''}" placeholder=" ">`);
-                fieldsHTML += createField('الوصف', `<textarea name="description" placeholder=" ">${data.description||''}</textarea>`);
+            } else {
                 fieldsHTML += createField('تاريخ الموعد', `<input type="datetime-local" name="event_date" required class="${data.event_date ? 'has-value' : ''}" value="${toLocalISOString(data.event_date)}">`);
             }
             container.innerHTML = fieldsHTML;
@@ -1094,35 +819,22 @@
         function toLocalISOString(date) {
             if (!date) return '';
             const d = new Date(date);
-            const pad = (num) => String(num).padStart(2, '0');
+            const pad = (n) => String(n).padStart(2, '0');
             return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
         }
         
         async function handleFormSubmit(e, type) {
             e.preventDefault();
             const form = e.target;
-            const formData = new FormData(form);
-            let data = Object.fromEntries(formData.entries());
+            const data = Object.fromEntries(new FormData(form).entries());
             data.is_shared = form.querySelector('#is_shared').checked;
             const id = form.querySelector('#edit-id').value;
             data.owner = currentUser;
-
-            if (data.start_datetime) data.start_datetime = new Date(data.start_datetime).toISOString();
-            if (data.due_datetime) data.due_datetime = new Date(data.due_datetime).toISOString();
-            if (data.event_date) data.event_date = new Date(data.event_date).toISOString();
-
+            ['start_datetime', 'due_datetime', 'event_date'].forEach(key => { if(data[key]) data[key] = new Date(data[key]).toISOString(); });
             if (type === 'tasks') {
-                const now = new Date();
-                const startDate = data.start_datetime ? new Date(data.start_datetime) : now;
-                const originalTask = id ? allData.tasks.find(t => t.id == id) : null;
-
-                if (originalTask && (originalTask.status === 'مكتملة')) {
-                    data.status = startDate > now ? 'تخطيط' : 'تنفيذ';
-                } else {
-                    data.status = startDate > now ? 'تخطيط' : 'تنفيذ';
-                }
+                const startDate = data.start_datetime ? new Date(data.start_datetime) : new Date();
+                data.status = startDate > new Date() ? 'تخطيط' : 'تنفيذ';
             }
-
             const { error } = id ? await supabaseClient.from(type).update(data).eq('id', id) : await supabaseClient.from(type).insert([data]);
             if (error) { showToast('فشل حفظ البيانات.', 'error'); console.error(error); } 
             else { showToast('تم الحفظ بنجاح'); switchScreen(currentActiveScreen); await fetchAllData(false); }
@@ -1141,33 +853,8 @@
 
         function renderTaskDetails(task) {
              const actions = allData.task_actions.filter(a => a.task_id === task.id);
-             const actionsHTML = actions.map(action => `
-                <div class="flex justify-between items-center p-3 rounded-lg bg-gray-50">
-                    <span class="${action.done ? 'line-through text-gray-500' : ''}">${action.title}</span>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" data-action-id="${action.id}" ${action.done ? 'checked' : ''} class="toggle-action-done">
-                        <button data-action-id="${action.id}" class="edit-action-btn text-gray-400 hover:text-blue-500">✏️</button>
-                        <button data-action-id="${action.id}" class="delete-action-btn text-gray-400 hover:text-red-500">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
-
-            detailsViewContainer.innerHTML = `
-                 <header class="bg-slate-700 text-white p-3 flex items-center gap-3 flex-shrink-0">
-                    <button id="back-btn" class="p-2 rounded-full hover:bg-slate-600"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button>
-                    <h2 class="text-xl font-bold truncate">${task.title}</h2>
-                </header>
-                <div class="flex-grow overflow-y-auto p-4 space-y-4">
-                    <div class="bg-white p-4 rounded-lg shadow"><h4 class="font-bold text-gray-500 text-sm mb-2">الوصف</h4><p class="whitespace-pre-wrap">${task.description || 'لا يوجد وصف'}</p></div>
-                    <div class="bg-white p-4 rounded-lg shadow">
-                        <div class="flex justify-between items-center mb-2">
-                             <h4 class="font-bold text-gray-500 text-sm">قائمة الإجراءات</h4>
-                             <button id="add-new-task-action-btn" class="text-blue-500 font-bold text-lg">+</button>
-                        </div>
-                        <div id="task-actions-list" class="space-y-2">${actions.length > 0 ? actionsHTML : '<p class="text-center text-gray-500 py-4">لا توجد إجراءات</p>'}</div>
-                    </div>
-                </div>
-            `;
+             const actionsHTML = actions.map(action => `<div class="flex justify-between items-center p-3 rounded-lg bg-gray-50"><span class="${action.done ? 'line-through text-gray-500' : ''}">${action.title}</span><div class="flex items-center gap-2"><input type="checkbox" data-action-id="${action.id}" ${action.done ? 'checked' : ''} class="toggle-action-done"><button data-action-id="${action.id}" class="edit-action-btn text-gray-400 hover:text-blue-500">✏️</button><button data-action-id="${action.id}" class="delete-action-btn text-gray-400 hover:text-red-500">🗑️</button></div></div>`).join('');
+            detailsViewContainer.innerHTML = `<header class="bg-slate-700 text-white p-3 flex items-center gap-3 flex-shrink-0"><button id="back-btn" class="p-2 rounded-full hover:bg-slate-600"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button><h2 class="text-xl font-bold truncate">${task.title}</h2></header><div class="flex-grow overflow-y-auto p-4 space-y-4"><div class="bg-white p-4 rounded-lg shadow"><h4 class="font-bold text-gray-500 text-sm mb-2">الوصف</h4><p class="whitespace-pre-wrap">${task.description || 'لا يوجد وصف'}</p></div><div class="bg-white p-4 rounded-lg shadow"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-gray-500 text-sm">قائمة الإجراءات</h4><button id="add-new-task-action-btn" class="text-blue-500 font-bold text-lg">+</button></div><div id="task-actions-list" class="space-y-2">${actions.length > 0 ? actionsHTML : '<p class="text-center text-gray-500 py-4">لا توجد إجراءات</p>'}</div></div></div>`;
             detailsViewContainer.querySelector('#back-btn').addEventListener('click', () => switchScreen(currentActiveScreen));
             detailsViewContainer.querySelector('#add-new-task-action-btn').addEventListener('click', () => openTaskActionModal(task.id));
             detailsViewContainer.querySelectorAll('.toggle-action-done').forEach(el => el.addEventListener('change', (e) => toggleTaskAction(e.target.dataset.actionId, e.target.checked)));
@@ -1188,46 +875,20 @@
             confirmationModal.classList.add('hidden');
         }
         async function updateTaskStatus(taskId, status) {
-            const payload = { status: status };
-            if (status === 'مكتملة' || status === 'مؤرشفة') {
-                payload.status_updated_at = new Date().toISOString();
-            }
+            const payload = { status, status_updated_at: new Date().toISOString() };
             const { error } = await supabaseClient.from('tasks').update(payload).eq('id', taskId);
-            if (error) {
-                showToast(`فشل تحديث حالة المهمة.`, 'error');
-                console.error(error);
-            } else {
-                showToast(`تم تحديث حالة المهمة بنجاح.`);
-                await fetchAllData(false);
-            }
+            if (error) { showToast(`فشل تحديث حالة المهمة.`, 'error'); console.error(error); }
+            else { showToast(`تم تحديث حالة المهمة بنجاح.`); await fetchAllData(false); }
         }
         function markTaskComplete(taskId) { confirmAction('تأكيد الإنجاز', 'هل أنت متأكد من أن هذه المهمة قد اكتملت؟', () => updateTaskStatus(taskId, 'مكتملة')); }
         function archiveTask(taskId) { confirmAction('تأكيد الأرشفة', 'هل أنت متأكد من أرشفة هذه المهمة؟', () => updateTaskStatus(taskId, 'مؤرشفة')); }
 
-        // Change: Added function to call a backend service for notifications
         async function sendShareNotification(item) {
             if (!item || !currentUser) return;
-
-            // This function calls a hypothetical Supabase Edge Function named 'send-notification'.
-            // In a real project, this backend function would handle fetching all subscribed users
-            // (excluding the sharer) and sending them a push notification via a push service.
-            console.log(`Invoking edge function to notify about shared item: ${item.title}`);
             try {
-                const { data, error } = await supabaseClient.functions.invoke('send-notification', {
-                    body: {
-                        sharerName: currentUser,
-                        itemTitle: item.title,
-                        itemType: item.type === 'tasks' ? 'مهمة' : 'موعد'
-                    }
-                });
-
+                const { data, error } = await supabaseClient.functions.invoke('send-notification', { body: { sharerName: currentUser, itemTitle: item.title, itemType: item.type === 'tasks' ? 'مهمة' : 'موعد' } });
                 if (error) throw error;
-                console.log('Successfully invoked notification function:', data);
-            } catch (error) {
-                // Log the error but don't show a toast to the sharing user,
-                // as the sharing action itself was successful. This is likely a backend issue.
-                console.error('Error invoking share notification function:', error);
-            }
+            } catch (error) { console.error('Error invoking share notification function:', error); }
         }
 
         async function deleteItem(table, id) {
@@ -1239,18 +900,11 @@
         }
         async function toggleShare(item) {
             const newSharedStatus = !item.is_shared;
-            const { error } = await supabaseClient
-                .from(item.type)
-                .update({ is_shared: newSharedStatus })
-                .eq('id', item.id);
-            if (error) {
-                showToast('فشل تحديث حالة المشاركة.', 'error');
-                console.error(error);
-            } else {
+            const { error } = await supabaseClient.from(item.type).update({ is_shared: newSharedStatus }).eq('id', item.id);
+            if (error) { showToast('فشل تحديث حالة المشاركة.', 'error'); console.error(error); }
+            else {
                 showToast(newSharedStatus ? 'تمت المشاركة بنجاح' : 'تم إلغاء المشاركة');
-                if (newSharedStatus) {
-                    await sendShareNotification(item); // Change: Call notification function
-                }
+                if (newSharedStatus) await sendShareNotification(item);
                 await fetchAllData(false);
             }
         }
@@ -1266,76 +920,47 @@
         async function handleTaskActionFormSubmit(e) {
             e.preventDefault();
             const form = e.target;
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
+            const data = Object.fromEntries(new FormData(form).entries());
             const taskId = parseInt(form.querySelector('#action-task-id').value);
             const actionId = form.querySelector('#action-edit-id').value;
             const payload = { task_id: taskId, title: data.title, done: data.done === 'on' };
-
-            let error;
-
-            if (actionId) {
-                // Handle edit
-                const { data: updatedAction, error: updateError } = await supabaseClient.from('task_actions').update(payload).eq('id', actionId).select().single();
-                error = updateError;
-                if (!error) {
-                    const index = allData.task_actions.findIndex(a => a.id == actionId);
-                    if (index !== -1) allData.task_actions[index] = updatedAction;
-                }
-            } else {
-                // Handle insert
-                const { data: newAction, error: insertError } = await supabaseClient.from('task_actions').insert(payload).select().single();
-                error = insertError;
-                if (!error) {
-                    allData.task_actions.push(newAction);
-                }
-            }
-
-            if(error) { 
-                showToast('فشل حفظ الإجراء', 'error'); 
-                console.error(error); 
-            } else { 
-                showToast('تم حفظ الإجراء'); 
-                taskActionModal.classList.add('hidden'); 
+            const { data: updatedData, error } = actionId 
+                ? await supabaseClient.from('task_actions').update(payload).eq('id', actionId).select().single()
+                : await supabaseClient.from('task_actions').insert(payload).select().single();
+            if(error) { showToast('فشل حفظ الإجراء', 'error'); console.error(error); }
+            else {
+                showToast('تم حفظ الإجراء');
+                taskActionModal.classList.add('hidden');
+                const index = allData.task_actions.findIndex(a => a.id == updatedData.id);
+                if (index !== -1) allData.task_actions[index] = updatedData;
+                else allData.task_actions.push(updatedData);
                 const task = allData.tasks.find(t => t.id === taskId);
-                if (task) {
-                    renderTaskDetails(task);
-                    rerenderActiveScreen(); // Rerender main screen to update progress percentages
-                }
+                if (task) { renderTaskDetails(task); rerenderActiveScreen(); }
             }
         }
         async function toggleTaskAction(actionId, isDone) {
             const { data: updatedAction, error } = await supabaseClient.from('task_actions').update({ done: isDone }).eq('id', actionId).select().single();
-            if(error) { 
-                showToast('فشل تحديث الإجراء', 'error'); 
-            } else { 
+            if(error) { showToast('فشل تحديث الإجراء', 'error'); }
+            else { 
                 const index = allData.task_actions.findIndex(a => a.id == actionId);
                 if (index !== -1) {
                     allData.task_actions[index] = updatedAction;
                     const task = allData.tasks.find(t => t.id === updatedAction.task_id);
-                    if (task) {
-                        renderTaskDetails(task);
-                        rerenderActiveScreen(); // Rerender main screen to update progress percentages
-                    }
+                    if (task) { renderTaskDetails(task); rerenderActiveScreen(); }
                 }
             }
         }
         async function deleteTaskAction(actionId) {
-            const actionToDelete = allData.task_actions.find(a => a.id == actionId);
-            if (!actionToDelete) return;
-
+            const action = allData.task_actions.find(a => a.id == actionId);
+            if (!action) return;
              confirmAction('حذف الإجراء', 'هل تريد حذف هذا الإجراء الفرعي؟', async () => {
                 const { error } = await supabaseClient.from('task_actions').delete().eq('id', actionId);
-                if (error) { 
-                    showToast('فشل حذف الإجراء', 'error'); 
-                } else { 
+                if (error) { showToast('فشل حذف الإجراء', 'error'); }
+                else { 
                     showToast('تم حذف الإجراء'); 
                     allData.task_actions = allData.task_actions.filter(a => a.id != actionId);
-                    const task = allData.tasks.find(t => t.id === actionToDelete.task_id);
-                    if (task) {
-                        renderTaskDetails(task);
-                        rerenderActiveScreen(); // Rerender main screen to update progress percentages
-                    }
+                    const task = allData.tasks.find(t => t.id === action.task_id);
+                    if (task) { renderTaskDetails(task); rerenderActiveScreen(); }
                 }
             });
         }
@@ -1343,48 +968,28 @@
         // --- User Management & Init ---
         function getInitials(name) {
             if (!name) return '';
-            const parts = name.trim().split(/\s+/);
-            if (parts.length > 1 && parts[parts.length - 1]) {
-                return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-            }
-            return name.charAt(0).toUpperCase();
+            const parts = name.trim().split(/\s+/).filter(Boolean);
+            if (parts.length > 1) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+            return (parts[0]?.[0] || '').toUpperCase();
         }
 
         async function showUserSelectionScreen() {
             const { data: users, error } = await supabaseClient.from('users').select('name');
             if (error) return;
-            
+            const colors = ['f87171', 'fb923c', 'fbbf24', 'a3e635', '4ade80', '34d399', '2dd4bf', '22d3ee', '38bdf8', '60a5fa', '818cf8', 'a78bfa', 'c084fc', 'e879f9', 'f472b6'];
             userList.innerHTML = users.map(user => {
                 const initials = getInitials(user.name);
-                const colors = ['f87171', 'fb923c', 'fbbf24', 'a3e635', '4ade80', '34d399', '2dd4bf', '22d3ee', '38bdf8', '60a5fa', '818cf8', 'a78bfa', 'c084fc', 'e879f9', 'f472b6'];
                 const color = colors[((user.name.charCodeAt(0) || 0) + (user.name.charCodeAt(1) || 0)) % colors.length];
                 const avatarUrl = `https://placehold.co/100x100/${color}/FFFFFF?text=${encodeURIComponent(initials)}&font=tajawal`;
-
-                return `
-                <div data-name="${user.name}" class="flex flex-col items-center gap-2 cursor-pointer group">
-                    <div class="w-24 h-24 rounded-full bg-slate-600 group-hover:bg-slate-500 transition-colors flex items-center justify-center overflow-hidden">
-                        <img src="${avatarUrl}" class="w-full h-full object-cover" alt="Avatar for ${user.name}">
-                    </div>
-                    <h2 class="text-xl font-bold text-slate-200 group-hover:text-white">${user.name}</h2>
-                </div>`;
+                return `<div data-name="${user.name}" class="flex flex-col items-center gap-2 cursor-pointer group"><div class="w-24 h-24 rounded-full bg-slate-600 group-hover:bg-slate-500 transition-colors flex items-center justify-center overflow-hidden"><img src="${avatarUrl}" class="w-full h-full object-cover" alt="Avatar for ${user.name}"></div><h2 class="text-xl font-bold text-slate-200 group-hover:text-white">${user.name}</h2></div>`;
             }).join('');
             userSelectionScreen.classList.remove('hidden');
             app.classList.add('hidden');
         }
         function updateDateTime() {
             const now = new Date();
-            const gregorian = new Intl.DateTimeFormat('ar-EG', {
-                weekday: 'long', // Change: Added weekday
-                calendar: 'gregory',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }).format(now);
-            const hijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            }).format(now);
+            const gregorian = new Intl.DateTimeFormat('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(now);
+            const hijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(now);
             dateContainer.textContent = `${gregorian} - ${hijri}`;
         }
         
@@ -1392,193 +997,124 @@
             confirmAction('الخروج من التطبيق', 'هل أنت متأكد من رغبتك في تسجيل الخروج والعودة لشاشة اختيار المستخدم؟', () => {
                  currentUser = null;
                  localStorage.removeItem('currentUser');
-                 showUserSelectionScreen();
+                 // Force a full page reload. This is more reliable on iOS PWA.
+                 // On reload, the script will see no user and show the selection screen.
+                 location.reload();
             });
         }
         
-        function closeApp() {
-            confirmAction('إغلاق التطبيق', 'هل أنت متأكد من رغبتك في إغلاق التطبيق؟', () => {
-                 window.close();
-            });
-        }
-
         // --- Notifications ---
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
             const rawData = window.atob(base64);
             const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
             return outputArray;
         }
 
         async function updateSubscriptionStatus() {
-            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !currentUser) {
-                notificationSwitch.checked = false;
-                return;
-            }
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !currentUser) { notificationSwitch.checked = false; return; }
             try {
                 const { data, error } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
                 if (error) throw error;
-                
                 const registration = await navigator.serviceWorker.ready;
-                const browserSubscription = await registration.pushManager.getSubscription();
-                const dbSubscription = data ? data.push_subscription : null;
-
-                if (dbSubscription && browserSubscription) {
-                    if (dbSubscription.endpoint !== browserSubscription.endpoint) {
-                        console.log("Subscription mismatch detected. Updating DB with current device's subscription.");
-                        await saveSubscriptionToDB(browserSubscription);
-                        notificationSwitch.checked = true;
-                    } else {
-                        notificationSwitch.checked = true;
-                    }
-                } else if (browserSubscription && !dbSubscription) {
-                    console.log("Browser subscription found but not in DB. Updating DB.");
-                    await saveSubscriptionToDB(browserSubscription);
-                    notificationSwitch.checked = true;
-                } else {
-                    notificationSwitch.checked = !!dbSubscription;
-                }
-            } catch (err) {
-                console.error("Error during subscription status update:", err);
-                notificationSwitch.checked = false;
-            }
+                const browserSub = await registration.pushManager.getSubscription();
+                const dbSub = data ? data.push_subscription : null;
+                if (dbSub && browserSub && dbSub.endpoint !== browserSub.endpoint) await saveSubscriptionToDB(browserSub);
+                else if (browserSub && !dbSub) await saveSubscriptionToDB(browserSub);
+                notificationSwitch.checked = !!(await registration.pushManager.getSubscription());
+            } catch (err) { console.error("Error updating subscription status:", err); notificationSwitch.checked = false; }
         }
 
-
         async function handleSubscriptionToggle(e) {
-            if (!currentUser) {
-                showToast('اختر المستخدم أولًا.', 'error');
-                e.target.checked = false;
-                return;
-            }
+            if (!currentUser) { showToast('اختر المستخدم أولًا.', 'error'); e.target.checked = false; return; }
             notificationSwitch.disabled = true;
-            if (e.target.checked) {
-                await subscribeToNotifications();
-            } else {
-                await unsubscribeFromNotifications();
-            }
+            if (e.target.checked) await subscribeToNotifications();
+            else await unsubscribeFromNotifications();
             notificationSwitch.disabled = false;
         }
         
         async function saveSubscriptionToDB(subscription) {
-            const payload = subscription ? subscription.toJSON() : null;
-            const { error } = await supabaseClient
-                .from('users')
-                .update({ push_subscription: payload })
-                .eq('name', currentUser);
+            const { error } = await supabaseClient.from('users').update({ push_subscription: subscription ? subscription.toJSON() : null }).eq('name', currentUser);
             if (error) throw error;
         }
 
         async function subscribeToNotifications() {
-            console.log("Attempting to subscribe to notifications...");
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                showToast('الإشعارات غير مدعومة.', 'error');
-                if (notificationSwitch) notificationSwitch.checked = false;
-                return;
-            }
-            if (Notification.permission === 'denied') {
-                showToast('الإشعارات محظورة.', 'error');
-                if (notificationSwitch) notificationSwitch.checked = false;
-                return;
-            }
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) { showToast('الإشعارات غير مدعومة.', 'error'); if(notificationSwitch) notificationSwitch.checked = false; return; }
+            if (Notification.permission === 'denied') { showToast('الإشعارات محظورة.', 'error'); if(notificationSwitch) notificationSwitch.checked = false; return; }
             try {
                 const registration = await navigator.serviceWorker.ready;
-                console.log("Service Worker is ready.");
-
                 if (Notification.permission === 'default') {
-                    console.log("Requesting notification permission...");
                     const permission = await Notification.requestPermission();
-                    if (permission !== 'granted') {
-                        showToast('تم رفض إذن الإشعارات.', 'info');
-                        if (notificationSwitch) notificationSwitch.checked = false;
-                        return;
-                    }
-                    console.log("Permission granted.");
+                    if (permission !== 'granted') { showToast('تم رفض إذن الإشعارات.', 'info'); if(notificationSwitch) notificationSwitch.checked = false; return; }
                 }
-                
-                let subscription = await registration.pushManager.getSubscription();
-                
-                if (!subscription) {
-                    console.log("No existing subscription, creating new one...");
-                    subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-                    });
-                    console.log("New subscription created:", subscription);
-                } else {
-                    console.log("Found existing subscription:", subscription);
-                }
-
-                console.log("Saving subscription to DB...");
-                await saveSubscriptionToDB(subscription);
-                console.log("Subscription saved to DB.");
+                let sub = await registration.pushManager.getSubscription();
+                if (!sub) sub = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+                await saveSubscriptionToDB(sub);
                 showToast('تم تفعيل الإشعارات بنجاح!', 'success');
-            } catch (error) {
-                console.error('Subscription process failed:', error);
-                showToast(`فشل التفعيل: ${error.message || error}`, 'error');
-                if (notificationSwitch) notificationSwitch.checked = false;
-            }
-            await updateSubscriptionStatus();
+            } catch (error) { console.error('Subscription failed:', error); showToast(`فشل التفعيل: ${error.message || error}`, 'error'); if(notificationSwitch) notificationSwitch.checked = false; }
         }
         
         async function unsubscribeFromNotifications() {
-            console.log("Attempting to unsubscribe...");
             try {
                 const registration = await navigator.serviceWorker.ready;
                 const subscription = await registration.pushManager.getSubscription();
-                if (subscription) {
-                    await subscription.unsubscribe();
-                    console.log("Unsubscribed from push manager.");
-                } else {
-                    console.log("No active subscription found to unsubscribe.");
-                }
+                if (subscription) await subscription.unsubscribe();
                 await saveSubscriptionToDB(null);
-                console.log("Removed subscription from DB.");
                 showToast('تم كتم الإشعارات.', 'info');
-            } catch (error) {
-                console.error('Failed to unsubscribe:', error);
-                showToast('فشل كتم الإشعارات.', 'error');
-            }
-             await updateSubscriptionStatus();
+            } catch (error) { console.error('Failed to unsubscribe:', error); showToast('فشل كتم الإشعارات.', 'error'); }
         }
         
-        function refreshDashboardData() {
-            if (currentActiveScreen === 'dashboard-screen') {
-                fetchAllData(false, true); // Fetch all data and re-render
-            }
-        }
-
         async function initApp() {
             appTitle.textContent = `إدارة المهام لـ${currentUser}`;
-            currentViewMode = localStorage.getItem('defaultViewMode') || 'summary';
             updateDateTime();
-            
-            // If user was subscribed on another device, attempt to subscribe this one.
             const { data: userSubData } = await supabaseClient.from('users').select('push_subscription').eq('name', currentUser).single();
-            if (userSubData && userSubData.push_subscription) {
-                 await subscribeToNotifications();
-            }
-
+            if (userSubData?.push_subscription) await subscribeToNotifications();
             updateSubscriptionStatus();
             setInterval(updateDateTime, 60000 * 5);
             setInterval(checkTaskTransitions, 60000 * 5);
-            setInterval(refreshDashboardData, 30 * 60 * 1000);
             const lastScreen = localStorage.getItem('lastActiveScreen') || 'dashboard-screen';
             await performAutomaticCleanup();
             switchScreen(lastScreen);
             await fetchAllData();
-            await checkTaskTransitions(); // Check for transitions on initial load
+            await checkTaskTransitions();
             supabaseClient.channel('public-changes').on('postgres_changes', { event: '*', schema: 'public' }, () => fetchAllData(false)).subscribe();
+        }
+
+        // Helper function for robust event handling on touch and mouse devices
+        function addSafeEventListener(element, handler) {
+            if (!element) return;
+            let touchmoved = false;
+
+            element.addEventListener('touchstart', () => { touchmoved = false; }, { passive: true });
+            element.addEventListener('touchmove', () => { touchmoved = true; }, { passive: true });
+            
+            element.addEventListener('touchend', (e) => {
+                if (!touchmoved) {
+                    e.preventDefault(); // Prevents a 'ghost' click event
+                    handler(e);
+                }
+            });
+
+            // Fallback for non-touch devices, preventing ghost clicks
+            element.addEventListener('click', (e) => {
+                // e.detail is 0 for emulated clicks after a touchend on some browsers
+                if (e.detail === 0) return;
+                handler(e);
+            });
         }
 
         function setupEventListeners() {
             notificationSwitch.addEventListener('change', handleSubscriptionToggle);
-            viewModeToggleBtn.addEventListener('click', handleViewModeToggle);
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchScreen(btn.dataset.screen)));
+            
+            addSafeEventListener(viewModeToggleBtn, handleViewModeToggle);
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                addSafeEventListener(btn, () => switchScreen(btn.dataset.screen));
+            });
+
+            // Standard click is fine for the user list selection
             userList.addEventListener('click', e => {
                  const userDiv = e.target.closest('[data-name]');
                  if (userDiv) { 
@@ -1590,12 +1126,17 @@
                      initApp(); 
                  }
             });
-            confirmActionBtn.addEventListener('click', handleConfirmAction);
-            cancelActionBtn.addEventListener('click', () => confirmationModal.classList.add('hidden'));
-            cancelTaskActionModalBtn.addEventListener('click', () => taskActionModal.classList.add('hidden'));
+
+            addSafeEventListener(confirmActionBtn, handleConfirmAction);
+            addSafeEventListener(cancelActionBtn, () => confirmationModal.classList.add('hidden'));
+            addSafeEventListener(cancelTaskActionModalBtn, () => taskActionModal.classList.add('hidden'));
+            
             taskActionForm.addEventListener('submit', handleTaskActionFormSubmit);
-            appTitle.addEventListener('click', confirmExitApp);
-            exitAppBtn.addEventListener('click', closeApp);
+            
+            addSafeEventListener(appTitle, confirmExitApp);
+            
+            // Fix: Re-route the exit button to perform logout, which is more reliable than window.close()
+            addSafeEventListener(exitAppBtn, confirmExitApp);
         }
         
         // --- Initial Load ---
