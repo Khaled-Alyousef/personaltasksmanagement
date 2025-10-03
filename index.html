@@ -362,8 +362,8 @@
                             <p class="text-sm text-gray-600 mb-4 line-clamp-2">${item.description || 'لا يوجد وصف'}</p>
                         </div>
                         <div>
-                            <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
-                                <span>الإنجاز</span><span>${toIndianNumerals(progress)}%</span>
+                            <div class="flex justify-between items-center text-gray-500 mb-2">
+                                <span class="text-sm">الإنجاز</span><span class="text-xl font-bold text-slate-700">${toIndianNumerals(progress)}%</span>
                             </div>
                             <div class="progress-bar"><div class="progress-bar-inner" style="width: ${progress}%"></div></div>
                         </div>`;
@@ -608,7 +608,7 @@
             const isOverdue = new Date(task.due_datetime) < new Date(new Date().setHours(0,0,0,0));
             const timeText = isOverdue ? `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(daysOverdue(task.due_datetime))} ${daysOverdue(task.due_datetime) > 1 ? 'أيام' : 'يوم'}</p>` : `<p class="text-sm text-gray-500">${formatTimeRemaining(task.due_datetime, false, 'tasks')}</p>`;
             card.className = `${isOverdue ? 'bg-red-100 border-red-500' : 'bg-green-100 border-green-500'} p-3 rounded-lg shadow flex items-center gap-3 border-r-4`;
-            card.innerHTML = `<div class="flex-grow min-w-0"><p class="font-bold text-gray-800">${task.title}</p>${timeText}</div><div class="flex-shrink-0 text-center"><p class="font-bold text-lg ${isOverdue ? 'text-red-500' : 'text-green-600'}">${toIndianNumerals(progress)}%</p><p class="text-xs text-gray-500">إنجاز</p></div>`;
+            card.innerHTML = `<div class="flex-grow min-w-0"><p class="font-bold text-gray-800">${task.title}</p>${timeText}</div><div class="flex-shrink-0 text-center"><p class="font-bold text-xl ${isOverdue ? 'text-red-500' : 'text-green-600'}">${toIndianNumerals(progress)}%</p><p class="text-xs text-gray-500">إنجاز</p></div>`;
             return card;
         }
 
@@ -636,7 +636,7 @@
                     timeText = `<p class="text-sm text-gray-500">${formatTimeRemaining(item.start_datetime, true, 'tasks')}</p>`;
                     cardClasses += ' bg-white border-gray-300';
                 } else if (item.status === 'تنفيذ') {
-                    progressHTML = `<div class="flex-shrink-0 text-center"><p class="font-bold text-lg ${isOverdue ? 'text-red-600' : 'text-green-600'}">${toIndianNumerals(progress)}%</p><p class="text-xs text-gray-500">إنجاز</p></div>`;
+                    progressHTML = `<div class="flex-shrink-0 text-center"><p class="font-bold text-xl ${isOverdue ? 'text-red-600' : 'text-green-600'}">${toIndianNumerals(progress)}%</p><p class="text-xs text-gray-500">إنجاز</p></div>`;
                     if (isOverdue) {
                         timeText = `<p class="text-sm text-red-600 font-semibold">متأخرة منذ ${toIndianNumerals(daysOverdue(item.due_datetime))} ${daysOverdue(item.due_datetime) > 1 ? 'أيام' : 'يوم'}</p>`;
                         cardClasses += ' bg-red-100 border-red-500';
@@ -1003,6 +1003,12 @@
             });
         }
         
+        function confirmCloseApp() {
+            confirmAction('إغلاق التطبيق', 'هل أنت متأكد من رغبتك في إغلاق التطبيق بالكامل؟', () => {
+                 window.close();
+            });
+        }
+
         // --- Notifications ---
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -1135,8 +1141,7 @@
             
             addSafeEventListener(appTitle, confirmExitApp);
             
-            // Fix: Re-route the exit button to perform logout, which is more reliable than window.close()
-            addSafeEventListener(exitAppBtn, confirmExitApp);
+            addSafeEventListener(exitAppBtn, confirmCloseApp);
         }
         
         // --- Initial Load ---
