@@ -67,6 +67,19 @@
     <div id="toast-container"></div>
 
     <div id="modal-container">
+        <div id="password-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+                <h3 id="password-user-name" class="text-lg font-bold mb-2"></h3>
+                <p class="text-gray-600 mb-4">الرجاء إدخال كلمة المرور</p>
+                <form id="password-form">
+                    <input type="password" id="password-input" class="w-full p-2 border rounded-md text-center" required>
+                    <div class="flex justify-center space-x-4 space-x-reverse mt-4">
+                        <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">دخول</button>
+                        <button type="button" id="cancel-password-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-400">إلغاء</button>
+                    </div>
+                </form>
+            </div>
+        </div>
         <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
             <div class="bg-white p-6 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
                 <h3 id="confirmation-title" class="text-lg font-bold mb-4">تأكيد</h3>
@@ -176,9 +189,17 @@
         const cancelTaskActionModalBtn = document.getElementById('cancel-task-action-modal');
         const exitAppBtn = document.getElementById('exit-app-btn');
         const weatherContainer = document.getElementById('weather-container');
+        const passwordModal = document.getElementById('password-modal');
+        const passwordForm = document.getElementById('password-form');
+        const passwordInput = document.getElementById('password-input');
+        const passwordUserName = document.getElementById('password-user-name');
+        const cancelPasswordBtn = document.getElementById('cancel-password-btn');
+
         
         const summaryIcon = `<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>`;
         const detailedIcon = `<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>`;
+        const lockedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12 text-white"><path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3A5.25 5.25 0 0012 1.5zm-3.75 5.25a3.75 3.75 0 107.5 0v3h-7.5v-3z" clip-rule="evenodd" /></svg>`;
+        const unlockedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12 text-white"><path d="M18 1.5c2.9 0 5.25 2.35 5.25 5.25v3.75a.75.75 0 01-1.5 0V6.75a3.75 3.75 0 10-7.5 0v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a.75.75 0 011.5 0v6.75a4.5 4.5 0 01-4.5 4.5H6.75a4.5 4.5 0 01-4.5-4.5v-6.75a4.5 4.5 0 014.5-4.5v-3A5.25 5.25 0 0112 1.5a.75.75 0 010 1.5A3.75 3.75 0 008.25 6.75v3a.75.75 0 01-1.5 0v-3A5.25 5.25 0 0112 1.5a.75.75 0 010 1.5A3.75 3.75 0 008.25 6.75v3a.75.75 0 01-1.5 0v-3z" /><path fill-rule="evenodd" d="M12.75 1.5a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3a.75.75 0 01.75-.75z" clip-rule="evenodd" /></svg>`;
 
         // --- Toast Notifications ---
         function showToast(message, type = 'success') {
@@ -435,7 +456,7 @@
             card.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => { e.stopPropagation(); openUpdateScreen(item.type, item); });
             card.querySelector('[data-action="share"]')?.addEventListener('click', (e) => { e.stopPropagation(); toggleShare(item); });
             card.querySelector('[data-action="archive"]')?.addEventListener('click', (e) => { e.stopPropagation(); archiveTask(item.id); });
-            card.querySelector('[data-action="complete"]')?.addEventListener('click', (e) => { e.stopPropagation(); markTaskComplete(item.id); });
+            card.querySelector('[data-action="complete"]')?.addEventListener('click', (e) => { e.stopPropagation(); markTaskComplete(item.id, e.currentTarget); });
             if (item.type === 'tasks') {
                 card.querySelector('[data-action="details"]')?.addEventListener('click', (e) => { e.stopPropagation(); openDetailsScreen('task', item.id); });
             }
@@ -864,24 +885,40 @@
         }
 
         // --- CRUD Operations & Actions ---
-        function confirmAction(title, message, onConfirm) {
+        function confirmAction(title, message, onConfirm, onCancel = null) {
             confirmationModal.querySelector('#confirmation-title').textContent = title;
             confirmationModal.querySelector('#confirmation-message').textContent = message;
-            actionToConfirm = onConfirm;
+            actionToConfirm = { onConfirm, onCancel };
             confirmationModal.classList.remove('hidden');
         }
+
         function handleConfirmAction() {
-            if (typeof actionToConfirm === 'function') actionToConfirm();
+            if (typeof actionToConfirm?.onConfirm === 'function') {
+                actionToConfirm.onConfirm();
+            }
             actionToConfirm = null;
             confirmationModal.classList.add('hidden');
         }
+        
         async function updateTaskStatus(taskId, status) {
             const payload = { status, status_updated_at: new Date().toISOString() };
             const { error } = await supabaseClient.from('tasks').update(payload).eq('id', taskId);
             if (error) { showToast(`فشل تحديث حالة المهمة.`, 'error'); console.error(error); }
             else { showToast(`تم تحديث حالة المهمة بنجاح.`); await fetchAllData(false); }
         }
-        function markTaskComplete(taskId) { confirmAction('تأكيد الإنجاز', 'هل أنت متأكد من أن هذه المهمة قد اكتملت؟', () => updateTaskStatus(taskId, 'مكتملة')); }
+
+        function markTaskComplete(taskId, buttonElement) {
+            if (buttonElement) buttonElement.classList.add('text-green-500');
+            confirmAction(
+                'تأكيد الإنجاز', 
+                'هل أنت متأكد من أن هذه المهمة قد اكتملت؟', 
+                () => updateTaskStatus(taskId, 'مكتملة'),
+                () => { // onCancel
+                    if (buttonElement) buttonElement.classList.remove('text-green-500');
+                }
+            );
+        }
+        
         function archiveTask(taskId) { confirmAction('تأكيد الأرشفة', 'هل أنت متأكد من أرشفة هذه المهمة؟', () => updateTaskStatus(taskId, 'مؤرشفة')); }
 
         async function sendShareNotification(item, isShared) {
@@ -976,26 +1013,44 @@
         }
 
         // --- User Management & Init ---
-        function getInitials(name) {
-            if (!name) return '';
-            const parts = name.trim().split(/\s+/).filter(Boolean);
-            if (parts.length > 1) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-            return (parts[0]?.[0] || '').toUpperCase();
-        }
+        let userDatabase = []; // Local cache for user data
 
         async function showUserSelectionScreen() {
-            const { data: users, error } = await supabaseClient.from('users').select('name');
-            if (error) return;
-            const colors = ['f87171', 'fb923c', 'fbbf24', 'a3e635', '4ade80', '34d399', '2dd4bf', '22d3ee', '38bdf8', '60a5fa', '818cf8', 'a78bfa', 'c084fc', 'e879f9', 'f472b6'];
-            userList.innerHTML = users.map(user => {
-                const initials = getInitials(user.name);
-                const color = colors[((user.name.charCodeAt(0) || 0) + (user.name.charCodeAt(1) || 0)) % colors.length];
-                const avatarUrl = `https://placehold.co/100x100/${color}/FFFFFF?text=${encodeURIComponent(initials)}&font=tajawal`;
-                return `<div data-name="${user.name}" class="flex flex-col items-center gap-2 cursor-pointer group"><div class="w-24 h-24 rounded-full bg-slate-600 group-hover:bg-slate-500 transition-colors flex items-center justify-center overflow-hidden"><img src="${avatarUrl}" class="w-full h-full object-cover" alt="Avatar for ${user.name}"></div><h2 class="text-xl font-bold text-slate-200 group-hover:text-white">${user.name}</h2></div>`;
+            const { data: users, error } = await supabaseClient.from('users').select('name, password');
+            if (error) {
+                console.error("Error fetching users:", error);
+                userList.innerHTML = `<p class="text-red-400">فشل في تحميل قائمة المستخدمين.</p>`;
+                return;
+            }
+            userDatabase = users || []; // Cache the user data
+            
+            userList.innerHTML = userDatabase.map(user => {
+                const hasPassword = user.password && user.password.trim() !== '';
+                const iconSVG = hasPassword ? lockedIconSVG : unlockedIconSVG;
+                const avatarUrl = `data:image/svg+xml;utf8,${encodeURIComponent(iconSVG)}`;
+
+                return `
+                <div data-name="${user.name}" class="flex flex-col items-center gap-2 cursor-pointer group">
+                    <div class="w-24 h-24 p-4 rounded-full bg-slate-600 group-hover:bg-slate-500 transition-colors flex items-center justify-center overflow-hidden">
+                        <img src="${avatarUrl}" class="w-full h-full object-contain" alt="Lock status for ${user.name}">
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-200 group-hover:text-white">${user.name}</h2>
+                </div>`;
             }).join('');
             userSelectionScreen.classList.remove('hidden');
             app.classList.add('hidden');
         }
+
+        function loginUser(userName) {
+            currentUser = userName;
+            localStorage.setItem('currentUser', currentUser);
+            localStorage.setItem('lastActiveScreen', 'dashboard-screen');
+            userSelectionScreen.classList.add('hidden');
+            passwordModal.classList.add('hidden');
+            app.classList.remove('hidden');
+            initApp();
+        }
+
         function updateDateTime() {
             const now = new Date();
             const gregorian = new Intl.DateTimeFormat('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(now);
@@ -1007,8 +1062,6 @@
             confirmAction('الخروج من التطبيق', 'هل أنت متأكد من رغبتك في تسجيل الخروج والعودة لشاشة اختيار المستخدم؟', () => {
                  currentUser = null;
                  localStorage.removeItem('currentUser');
-                 // Force a full page reload. This is more reliable on iOS PWA.
-                 // On reload, the script will see no user and show the selection screen.
                  location.reload();
             });
         }
@@ -1098,67 +1151,75 @@
             supabaseClient.channel('public-changes').on('postgres_changes', { event: '*', schema: 'public' }, () => fetchAllData(false)).subscribe();
         }
 
-        // Helper function for robust event handling on touch and mouse devices
-        function addSafeEventListener(element, handler) {
-            if (!element) return;
-            let touchmoved = false;
-
-            element.addEventListener('touchstart', () => { touchmoved = false; }, { passive: true });
-            element.addEventListener('touchmove', () => { touchmoved = true; }, { passive: true });
-            
-            element.addEventListener('touchend', (e) => {
-                if (!touchmoved) {
-                    e.preventDefault(); // Prevents a 'ghost' click event
-                    handler(e);
-                }
-            });
-
-            // Fallback for non-touch devices, preventing ghost clicks
-            element.addEventListener('click', (e) => {
-                // e.detail is 0 for emulated clicks after a touchend on some browsers
-                if (e.detail === 0) return;
-                handler(e);
-            });
-        }
-
         function setupEventListeners() {
             notificationSwitch.addEventListener('change', handleSubscriptionToggle);
             
-            addSafeEventListener(viewModeToggleBtn, handleViewModeToggle);
+            viewModeToggleBtn.addEventListener('click', handleViewModeToggle);
             
             document.querySelectorAll('.nav-btn').forEach(btn => {
-                addSafeEventListener(btn, () => switchScreen(btn.dataset.screen));
+                btn.addEventListener('click', () => switchScreen(btn.dataset.screen));
             });
 
-            // Standard click is fine for the user list selection
             userList.addEventListener('click', e => {
-                 const userDiv = e.target.closest('[data-name]');
-                 if (userDiv) { 
-                     currentUser = userDiv.dataset.name; 
-                     localStorage.setItem('currentUser', currentUser); 
-                     localStorage.setItem('lastActiveScreen', 'dashboard-screen');
-                     userSelectionScreen.classList.add('hidden'); 
-                     app.classList.remove('hidden'); 
-                     initApp(); 
-                 }
+                const userDiv = e.target.closest('[data-name]');
+                if (!userDiv) return;
+                
+                const userName = userDiv.dataset.name;
+                const selectedUser = userDatabase.find(u => u.name === userName);
+
+                if (selectedUser && selectedUser.password && selectedUser.password.trim() !== '') {
+                    passwordUserName.textContent = `مرحباً ${userName}`;
+                    passwordModal.classList.remove('hidden');
+                    passwordInput.focus();
+
+                    passwordForm.onsubmit = (event) => {
+                        event.preventDefault();
+                        if (passwordInput.value === selectedUser.password) {
+                            loginUser(userName);
+                        } else {
+                            showToast('كلمة المرور غير صحيحة', 'error');
+                            passwordInput.value = '';
+                        }
+                    };
+                } else {
+                    loginUser(userName);
+                }
             });
 
-            addSafeEventListener(confirmActionBtn, handleConfirmAction);
-            addSafeEventListener(cancelActionBtn, () => confirmationModal.classList.add('hidden'));
-            addSafeEventListener(cancelTaskActionModalBtn, () => taskActionModal.classList.add('hidden'));
+            confirmActionBtn.addEventListener('click', handleConfirmAction);
+            cancelActionBtn.addEventListener('click', () => {
+                confirmationModal.classList.add('hidden');
+                if (typeof actionToConfirm?.onCancel === 'function') {
+                    actionToConfirm.onCancel();
+                }
+                actionToConfirm = null;
+            });
+            cancelPasswordBtn.addEventListener('click', () => {
+                passwordModal.classList.add('hidden');
+                passwordInput.value = '';
+                passwordForm.onsubmit = null; // Clear the handler
+            });
+
+            cancelTaskActionModalBtn.addEventListener('click', () => taskActionModal.classList.add('hidden'));
             
             taskActionForm.addEventListener('submit', handleTaskActionFormSubmit);
             
-            addSafeEventListener(appTitle, confirmExitApp);
+            appTitle.addEventListener('click', confirmExitApp);
             
-            addSafeEventListener(exitAppBtn, confirmCloseApp);
+            exitAppBtn.addEventListener('click', confirmCloseApp);
         }
         
         // --- Initial Load ---
         setupEventListeners();
         currentUser = localStorage.getItem('currentUser');
-        if (currentUser) { userSelectionScreen.classList.add('hidden'); app.classList.remove('hidden'); initApp(); } 
-        else { showUserSelectionScreen(); }
+        if (currentUser) {
+            userSelectionScreen.classList.add('hidden');
+            app.classList.remove('hidden');
+            initApp();
+        } 
+        else {
+            showUserSelectionScreen();
+        }
     });
     </script>
 </body>
