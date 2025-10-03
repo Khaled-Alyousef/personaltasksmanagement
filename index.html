@@ -352,13 +352,21 @@
                 const completedActions = actions.filter(a => a.done).length;
                 const progress = actions.length > 0 ? Math.round((completedActions / actions.length) * 100) : 0;
                 
+                let completeButtonForTitle = '';
+                if (item.status === 'تنفيذ') {
+                    completeButtonForTitle = `<button data-action="complete" class="p-1 text-gray-400 hover:text-green-500" title="اكتملت"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></button>`;
+                }
+
                 if(context === 'archive') {
                      contentHTML = `<div class="flex-grow"><h3 class="font-bold text-lg mb-2">${item.title}</h3><p class="text-sm text-gray-600 mb-4 line-clamp-2">${item.description || 'لا يوجد وصف'}</p></div>`;
                      footerHTML = `<div></div>`; 
                 } else {
                      contentHTML = `
                         <div class="flex-grow">
-                            <h3 class="font-bold text-lg mb-2">${item.title}</h3>
+                             <div class="flex items-center gap-2 mb-2">
+                                ${completeButtonForTitle}
+                                <h3 class="font-bold text-lg">${item.title}</h3>
+                            </div>
                             <p class="text-sm text-gray-600 mb-4 line-clamp-2">${item.description || 'لا يوجد وصف'}</p>
                         </div>
                         <div>
@@ -395,17 +403,11 @@
             }
             
             card.className = cardClasses;
-
             const ownerHTML = `<div class="text-xs text-gray-400 mt-1">المالك: ${item.owner}</div>`;
 
-            let completeAction = '', archiveAction = '';
-            if (item.type === 'tasks') {
-                if (item.status === 'تنفيذ') {
-                    completeAction = `<button data-action="complete" class="p-2 text-gray-400 hover:text-green-500" title="اكتملت"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></button>`;
-                }
-                 if (item.status === 'تخطيط' || item.status === 'تنفيذ' || (item.status === 'مكتملة' && context === 'archive')) {
-                    archiveAction = `<button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>`;
-                }
+            let archiveAction = '';
+            if (item.type === 'tasks' && (item.status === 'تخطيط' || item.status === 'تنفيذ' || (item.status === 'مكتملة' && context === 'archive'))) {
+                archiveAction = `<button data-action="archive" class="p-2 text-gray-400 hover:text-yellow-500" title="أرشفة"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fill-rule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>`;
             }
             
             actionsHTML = `
@@ -413,11 +415,10 @@
                     <div class="flex items-center">
                          ${item.type === 'tasks' ? `<button data-action="details" class="p-2 text-gray-400 hover:text-blue-500" title="تفاصيل"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.03 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg></button>` : ''}
                         <button data-action="share" class="p-2 text-gray-400 ${item.is_shared ? 'text-blue-500' : 'hover:text-blue-500'}" title="مشاركة" ${!isOwner ? 'disabled' : ''}><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg></button>
-                        ${completeAction}
-                        ${archiveAction}
                     </div>
                     <div class="flex items-center">
                         <button data-action="edit" class="p-2 text-gray-400 hover:text-green-500" title="تعديل"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                        ${archiveAction}
                         <button data-action="delete" class="p-2 text-gray-400 hover:text-red-500" title="حذف"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
                     </div>
                 </div>`;
@@ -883,10 +884,18 @@
         function markTaskComplete(taskId) { confirmAction('تأكيد الإنجاز', 'هل أنت متأكد من أن هذه المهمة قد اكتملت؟', () => updateTaskStatus(taskId, 'مكتملة')); }
         function archiveTask(taskId) { confirmAction('تأكيد الأرشفة', 'هل أنت متأكد من أرشفة هذه المهمة؟', () => updateTaskStatus(taskId, 'مؤرشفة')); }
 
-        async function sendShareNotification(item) {
+        async function sendShareNotification(item, isShared) {
             if (!item || !currentUser) return;
+            const actionText = isShared ? 'مشاركة' : 'إلغاء مشاركة';
             try {
-                const { data, error } = await supabaseClient.functions.invoke('send-notification', { body: { sharerName: currentUser, itemTitle: item.title, itemType: item.type === 'tasks' ? 'مهمة' : 'موعد' } });
+                const { data, error } = await supabaseClient.functions.invoke('send-notification', {
+                     body: { 
+                        sharerName: currentUser, 
+                        itemTitle: item.title, 
+                        itemType: item.type === 'tasks' ? 'مهمة' : 'موعد',
+                        action: actionText
+                    } 
+                });
                 if (error) throw error;
             } catch (error) { console.error('Error invoking share notification function:', error); }
         }
@@ -901,10 +910,11 @@
         async function toggleShare(item) {
             const newSharedStatus = !item.is_shared;
             const { error } = await supabaseClient.from(item.type).update({ is_shared: newSharedStatus }).eq('id', item.id);
-            if (error) { showToast('فشل تحديث حالة المشاركة.', 'error'); console.error(error); }
-            else {
+            if (error) { 
+                showToast('فشل تحديث حالة المشاركة.', 'error'); console.error(error); 
+            } else {
                 showToast(newSharedStatus ? 'تمت المشاركة بنجاح' : 'تم إلغاء المشاركة');
-                if (newSharedStatus) await sendShareNotification(item);
+                await sendShareNotification(item, newSharedStatus);
                 await fetchAllData(false);
             }
         }
