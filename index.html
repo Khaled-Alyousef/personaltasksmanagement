@@ -11,6 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
@@ -36,13 +37,15 @@
         .form-field label { position: absolute; top: 11px; right: 12px; color: #6b7280; pointer-events: none; transition: 0.2s ease all; background-color: #ffffff; padding: 0 5px; }
         .form-field input:focus, .form-field textarea:focus, .form-field select:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); }
         .form-field input:focus ~ label, .form-field input:not(:placeholder-shown) ~ label, .form-field textarea:focus ~ label, .form-field textarea:not(:placeholder-shown) ~ label, .form-field select:focus ~ label, .form-field select.has-value ~ label { top: -10px; font-size: 0.8rem; color: #3b82f6; }
-        .weather-icon-compact { width: 3rem; height: 3rem; }
+        .weather-icon-compact { width: 4rem; height: 4rem; }
         .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px;}
         .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%;}
         input:checked + .slider { background-color: #2196F3; }
         input:checked + .slider:before { transform: translateX(22px); }
+        .drag-handle { cursor: grab; }
+        .sortable-ghost { opacity: 0.4; background: #c8ebfb; }
     </style>
     <script>
         if ('serviceWorker' in navigator) {
@@ -588,18 +591,26 @@
                 '02d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><circle cx="32" cy="32" r="11.2" fill="#f59e0b" stroke="#f59e0b" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="15.2" x2="32" y2="6.8" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="43.8" y1="19.2" x2="49.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="20.2" y1="19.2" x2="14.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
                 '02n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M34.7,49.5c-0.3,0-0.7,0-1-0.1c-9.2-1.8-15.8-10.4-14-19.6c1.3-6.5,6.4-11.7,12.9-12.9c8.2-1.6,16.2,3.3,19,11.2" fill="#72809D" stroke="#72809D" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
                 '03d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><path d="M49.8,28.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,28.1,49.8,28.1z" fill="#cbd5e1" stroke="#cbd5e1" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '03n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><path d="M49.8,28.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,28.1,49.8,28.1z" fill="#cbd5e1" stroke="#cbd5e1" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
                 '04d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><path d="M49.8,28.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,28.1,49.8,28.1z" fill="#cbd5e1" stroke="#cbd5e1" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '04n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><path d="M49.8,28.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,28.1,49.8,28.1z" fill="#cbd5e1" stroke="#cbd5e1" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
                 '09d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="24" y1="41" x2="24" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="41" x2="32" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="40" y1="41" x2="40" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
-                '10d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="41" x2="32" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '09n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="24" y1="41" x2="24" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="41" x2="32" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="40" y1="41" x2="40" y2="53" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '10d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><circle cx="32" cy="32" r="11.2" fill="#f59e0b" stroke="#f59e0b" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="15.2" x2="32" y2="6.8" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="43.8" y1="19.2" x2="49.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="20.2" y1="19.2" x2="14.5" y2="13.5" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="50" x2="32" y2="58" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '10n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M34.7,49.5c-0.3,0-0.7,0-1-0.1c-9.2-1.8-15.8-10.4-14-19.6c1.3-6.5,6.4-11.7,12.9-12.9c8.2-1.6,16.2,3.3,19,11.2" fill="#72809D" stroke="#72809D" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M49.8,40.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,40.1,49.8,40.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="32" y1="50" x2="32" y2="58" fill="none" stroke="#60a5fa" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
                 '11d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><polygon points="33,40 29,48 35,48 31,56" fill="#f59e0b" stroke="#f59e0b" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
+                '11n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><polygon points="33,40 29,48 35,48 31,56" fill="#f59e0b" stroke="#f59e0b" stroke-miterlimit="10" stroke-width="2"/></g></svg>`,
                 '13d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="24" y1="46" x2="40" y2="46" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="38" x2="32" y2="54" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="27" y1="41" x2="37" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="37" y1="41" x2="27" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
-                '50d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><line x1="12" y1="24" x2="52" y2="24" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="32" x2="52" y2="32" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="40" x2="52" y2="40" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`
+                '13n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><path d="M49.8,32.1h-36c-3.3,0-6-2.7-6-6s2.7-6,6-6h36c3.3,0,6,2.7,6,6S53.1,32.1,49.8,32.1z" fill="#94a3b8" stroke="#94a3b8" stroke-miterlimit="10" stroke-width="2"/><line x1="24" y1="46" x2="40" y2="46" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="32" y1="38" x2="32" y2="54" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="27" y1="41" x2="37" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="37" y1="41" x2="27" y2="51" fill="none" stroke="#cbd5e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '50d': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><line x1="12" y1="24" x2="52" y2="24" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="32" x2="52" y2="32" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="40" x2="52" y2="40" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`,
+                '50n': `<svg class="weather-icon-compact" viewBox="0 0 64 64"><g><line x1="12" y1="24" x2="52" y2="24" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="32" x2="52" y2="32" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/><line x1="12" y1="40" x2="52" y2="40" fill="none" stroke="#d1d5db" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></g></svg>`
             };
-            const genericDay = iconMap['02d'], genericNight = iconMap['02n'];
-            const generic = isDay ? genericDay : genericNight;
-            const key = iconCode.slice(0, 2) + (isDay ? 'd' : 'n');
-            const specificKey = iconCode.slice(0, 2) + 'd'; 
-            return iconMap[key] || iconMap[specificKey] || generic;
+            
+            const key = iconCode;
+            const fallbackKey = iconCode.slice(0,2) + 'd';
+            const generic = isDay ? iconMap['01d'] : iconMap['01n'];
+            
+            return iconMap[key] || iconMap[fallbackKey] || generic;
         }
 
         async function fetchAndRenderWeather() {
@@ -618,7 +629,22 @@
                 const todayMin = Math.min(...todayForecasts.map(f => f.main.temp_min), current.main.temp_min);
                 const todayMax = Math.max(...todayForecasts.map(f => f.main.temp_max), current.main.temp_max);
                 
-                weatherCard.innerHTML = `<div class="flex items-center justify-between text-sm h-full"><div class="flex items-center gap-3">${getWeatherIconSVG(current.weather[0].icon, isDay)}<div><p class="text-2xl font-bold">${toIndianNumerals(Math.round(current.main.temp))}°</p><p class="text-gray-500">${current.weather[0].description}</p></div></div><div class="text-left text-xs space-y-1"><p><strong>المحسوسة:</strong> ${toIndianNumerals(Math.round(current.main.feels_like))}°</p><p><strong>الرطوبة:</strong> ${toIndianNumerals(current.main.humidity)}%</p><p><strong>العظمى:</strong> ${toIndianNumerals(Math.round(todayMax))}°</p><p><strong>الصغرى:</strong> ${toIndianNumerals(Math.round(todayMin))}°</p></div></div>`;
+                weatherCard.innerHTML = `
+                    <div class="flex flex-col justify-between h-full">
+                        <div class="flex items-start justify-between">
+                            <div class="text-right">
+                                <p class="text-4xl font-bold">${toIndianNumerals(Math.round(current.main.temp))}°</p>
+                                <p class="text-gray-500">${current.weather[0].description}</p>
+                            </div>
+                             ${getWeatherIconSVG(current.weather[0].icon, isDay)}
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mt-2">
+                            <span><strong>المحسوسة:</strong> ${toIndianNumerals(Math.round(current.main.feels_like))}°</span>
+                            <span><strong>الرطوبة:</strong> ${toIndianNumerals(current.main.humidity)}%</span>
+                            <span><strong>العظمى:</strong> ${toIndianNumerals(Math.round(todayMax))}°</span>
+                            <span><strong>الصغرى:</strong> ${toIndianNumerals(Math.round(todayMin))}°</span>
+                        </div>
+                    </div>`;
             } catch (error) { 
                 console.error("Weather Error:", error);
                 weatherCard.innerHTML = '<p class="text-center text-red-500">فشل تحميل الطقس.</p>';
@@ -805,15 +831,36 @@
             mainView.classList.add('hidden');
             detailsViewContainer.classList.remove('hidden');
             fabContainer.classList.add('hidden');
+            
+            let viewActionsButton = '';
+            if (type === 'tasks' && data.id) {
+                viewActionsButton = `
+                <button id="view-actions-btn" class="p-2 rounded-full hover:bg-gray-100" title="عرض الإجراءات">
+                    <svg class="h-6 w-6 text-gray-500 hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.522 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.478 0-8.268-2.943-9.542-7z" /></svg>
+                </button>`;
+            }
+            
             detailsViewContainer.innerHTML = `
                 <header class="bg-slate-700 text-white p-3 flex items-center gap-3 flex-shrink-0">
                     <button id="back-btn" class="p-2 rounded-full hover:bg-slate-600"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button>
                     <h2 class="text-xl font-bold">${data.id ? 'تعديل' : 'إضافة'} ${type === 'tasks' ? 'مهمة' : 'موعد'}</h2>
                 </header>
-                <div class="flex-grow overflow-y-auto"><form id="data-form" class="bg-white p-4 space-y-2 h-full flex flex-col"><div id="form-fields" class="flex-grow space-y-2 pt-6"></div><input type="hidden" id="edit-id" value="${data?.id || ''}"><div class="flex-shrink-0 flex justify-between items-center gap-2 pt-2 border-t"><div class="flex items-center gap-2"><label for="is_shared" class="text-sm">مشاركة</label><label class="switch"><input type="checkbox" id="is_shared" name="is_shared" ${data.is_shared ? 'checked' : ''}><span class="slider"></span></label></div><button type="submit" class="bg-blue-600 text-white px-5 py-2 text-sm rounded-md hover:bg-blue-700">حفظ</button></div></form></div>`;
+                <div class="flex-grow overflow-y-auto"><form id="data-form" class="bg-white p-4 space-y-2 h-full flex flex-col"><div id="form-fields" class="flex-grow space-y-2 pt-6"></div><input type="hidden" id="edit-id" value="${data?.id || ''}"><div class="flex-shrink-0 flex justify-between items-center gap-2 pt-2 border-t"><div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <label for="is_shared" class="text-sm">مشاركة</label>
+                        <label class="switch"><input type="checkbox" id="is_shared" name="is_shared" ${data.is_shared ? 'checked' : ''}><span class="slider"></span></label>
+                    </div>
+                    ${viewActionsButton}
+                </div><button type="submit" class="bg-blue-600 text-white px-5 py-2 text-sm rounded-md hover:bg-blue-700">حفظ</button></div></form></div>`;
+            
             generateFormFields(type, data);
             detailsViewContainer.querySelector('#back-btn').addEventListener('click', () => switchScreen(currentActiveScreen));
             detailsViewContainer.querySelector('#data-form').addEventListener('submit', (e) => handleFormSubmit(e, type));
+
+            if (type === 'tasks' && data.id) {
+                detailsViewContainer.querySelector('#view-actions-btn').addEventListener('click', () => openDetailsScreen('task', data.id, data));
+            }
+            
             if(type === 'tasks') {
                 const startInput = detailsViewContainer.querySelector('[name="start_datetime"]');
                 const dueInput = detailsViewContainer.querySelector('[name="due_datetime"]');
@@ -863,26 +910,81 @@
             else { showToast('تم الحفظ بنجاح'); switchScreen(currentActiveScreen); await fetchAllData(false); }
         }
 
-        function openDetailsScreen(type, id) {
+        function openDetailsScreen(type, id, fromTaskData = null) {
              if (type === 'task') {
                 const task = allData.tasks.find(t => t.id === id);
                 if (!task) return;
                 mainView.classList.add('hidden');
                 detailsViewContainer.classList.remove('hidden');
                 fabContainer.classList.add('hidden');
-                renderTaskDetails(task);
+                renderTaskDetails(task, fromTaskData);
             }
         }
 
-        function renderTaskDetails(task) {
-             const actions = allData.task_actions.filter(a => a.task_id === task.id);
-             const actionsHTML = actions.map(action => `<div class="flex justify-between items-center p-3 rounded-lg bg-gray-50"><span class="${action.done ? 'line-through text-gray-500' : ''}">${action.title}</span><div class="flex items-center gap-2"><input type="checkbox" data-action-id="${action.id}" ${action.done ? 'checked' : ''} class="toggle-action-done"><button data-action-id="${action.id}" class="edit-action-btn text-gray-400 hover:text-blue-500">✏️</button><button data-action-id="${action.id}" class="delete-action-btn text-gray-400 hover:text-red-500">🗑️</button></div></div>`).join('');
+        function renderTaskDetails(task, fromTaskData = null) {
+             const actions = allData.task_actions.filter(a => a.task_id === task.id).sort((a,b) => a.position - b.position);
+             const actionsHTML = actions.map(action => `
+                <div class="flex justify-between items-center p-3 rounded-lg bg-gray-50 border" data-id="${action.id}">
+                    <div class="flex items-center gap-2">
+                        <span class="drag-handle text-gray-400">☰</span>
+                        <input type="checkbox" data-action-id="${action.id}" ${action.done ? 'checked' : ''} class="toggle-action-done">
+                        <span class="${action.done ? 'line-through text-gray-500' : ''}">${action.title}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button data-action-id="${action.id}" class="edit-action-btn text-gray-400 hover:text-blue-500">✏️</button>
+                        <button data-action-id="${action.id}" class="delete-action-btn text-gray-400 hover:text-red-500">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
             detailsViewContainer.innerHTML = `<header class="bg-slate-700 text-white p-3 flex items-center gap-3 flex-shrink-0"><button id="back-btn" class="p-2 rounded-full hover:bg-slate-600"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button><h2 class="text-xl font-bold truncate">${task.title}</h2></header><div class="flex-grow overflow-y-auto p-4 space-y-4"><div class="bg-white p-4 rounded-lg shadow"><h4 class="font-bold text-gray-500 text-sm mb-2">الوصف</h4><p class="whitespace-pre-wrap">${task.description || 'لا يوجد وصف'}</p></div><div class="bg-white p-4 rounded-lg shadow"><div class="flex justify-between items-center mb-2"><h4 class="font-bold text-gray-500 text-sm">قائمة الإجراءات</h4><button id="add-new-task-action-btn" class="text-blue-500 font-bold text-lg">+</button></div><div id="task-actions-list" class="space-y-2">${actions.length > 0 ? actionsHTML : '<p class="text-center text-gray-500 py-4">لا توجد إجراءات</p>'}</div></div></div>`;
-            detailsViewContainer.querySelector('#back-btn').addEventListener('click', () => switchScreen(currentActiveScreen));
+            
+            const backBtn = detailsViewContainer.querySelector('#back-btn');
+            if (fromTaskData) {
+                backBtn.addEventListener('click', () => openUpdateScreen('tasks', fromTaskData));
+            } else {
+                backBtn.addEventListener('click', () => switchScreen(currentActiveScreen));
+            }
+            
             detailsViewContainer.querySelector('#add-new-task-action-btn').addEventListener('click', () => openTaskActionModal(task.id));
             detailsViewContainer.querySelectorAll('.toggle-action-done').forEach(el => el.addEventListener('change', (e) => toggleTaskAction(e.target.dataset.actionId, e.target.checked)));
             detailsViewContainer.querySelectorAll('.edit-action-btn').forEach(el => el.addEventListener('click', (e) => openTaskActionModal(task.id, allData.task_actions.find(a => a.id == e.currentTarget.dataset.actionId))));
             detailsViewContainer.querySelectorAll('.delete-action-btn').forEach(el => el.addEventListener('click', (e) => deleteTaskAction(e.currentTarget.dataset.actionId)));
+            
+            const listEl = detailsViewContainer.querySelector('#task-actions-list');
+            if (listEl) {
+                new Sortable(listEl, {
+                    animation: 150,
+                    handle: '.drag-handle',
+                    ghostClass: 'sortable-ghost',
+                    onEnd: async (evt) => {
+                        const actionElements = Array.from(evt.target.children);
+                        const updates = actionElements.map((el, index) => ({
+                            id: parseInt(el.dataset.id),
+                            position: index
+                        }));
+
+                        const promises = updates.map(update => 
+                            supabaseClient.from('task_actions')
+                                .update({ position: update.position })
+                                .eq('id', update.id)
+                        );
+
+                        const results = await Promise.all(promises);
+                        const firstError = results.find(res => res.error);
+
+                        if (firstError) {
+                            showToast('فشل حفظ الترتيب الجديد.', 'error');
+                            console.error(firstError.error);
+                        } else {
+                            showToast('تم حفظ الترتيب بنجاح.');
+                            updates.forEach(update => {
+                                const action = allData.task_actions.find(a => a.id === update.id);
+                                if (action) action.position = update.position;
+                            });
+                        }
+                    }
+                });
+            }
         }
 
         // --- CRUD Operations & Actions ---
@@ -943,13 +1045,22 @@
                 await fetchAllData(false);
             }
         }
-        function openTaskActionModal(taskId, data = null) {
+        async function openTaskActionModal(taskId, data = null) {
             taskActionForm.reset();
             taskActionModal.querySelector('#task-action-modal-title').textContent = data ? 'تعديل إجراء' : 'إضافة إجراء';
             taskActionModal.querySelector('#action-task-id').value = taskId;
             taskActionModal.querySelector('#action-edit-id').value = data?.id || '';
             taskActionModal.querySelector('[name="title"]').value = data?.title || '';
             taskActionModal.querySelector('[name="done"]').checked = data?.done || false;
+            
+            if (!data) { // If it's a new action, determine the next position
+                 const actions = allData.task_actions.filter(a => a.task_id === taskId);
+                 const maxPosition = actions.length > 0 ? Math.max(...actions.map(a => a.position || 0)) : -1;
+                 taskActionForm.dataset.nextPosition = maxPosition + 1;
+            } else {
+                delete taskActionForm.dataset.nextPosition;
+            }
+
             taskActionModal.classList.remove('hidden');
         }
         async function handleTaskActionFormSubmit(e) {
@@ -959,6 +1070,11 @@
             const taskId = parseInt(form.querySelector('#action-task-id').value);
             const actionId = form.querySelector('#action-edit-id').value;
             const payload = { task_id: taskId, title: data.title, done: data.done === 'on' };
+            
+            if (!actionId && form.dataset.nextPosition) {
+                payload.position = parseInt(form.dataset.nextPosition);
+            }
+
             const { data: updatedData, error } = actionId 
                 ? await supabaseClient.from('task_actions').update(payload).eq('id', actionId).select().single()
                 : await supabaseClient.from('task_actions').insert(payload).select().single();
@@ -966,11 +1082,11 @@
             else {
                 showToast('تم حفظ الإجراء');
                 taskActionModal.classList.add('hidden');
-                const index = allData.task_actions.findIndex(a => a.id == updatedData.id);
-                if (index !== -1) allData.task_actions[index] = updatedData;
-                else allData.task_actions.push(updatedData);
+                await fetchAllData(false); // Refetch all data to ensure order is correct
                 const task = allData.tasks.find(t => t.id === taskId);
-                if (task) { renderTaskDetails(task); rerenderActiveScreen(); }
+                if (task) { 
+                    openDetailsScreen('task', task.id);
+                }
             }
         }
         async function toggleTaskAction(actionId, isDone) {
