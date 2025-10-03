@@ -199,7 +199,7 @@
         const summaryIcon = `<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>`;
         const detailedIcon = `<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>`;
         const lockedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12 text-white"><path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3A5.25 5.25 0 0012 1.5zM8.25 6.75a3.75 3.75 0 117.5 0v3H8.25v-3z" clip-rule="evenodd" /></svg>`;
-        const unlockedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12 text-white"><path d="M18 1.5c2.9 0 5.25 2.35 5.25 5.25v3.75a.75.75 0 01-1.5 0V6.75a3.75 3.75 0 10-7.5 0v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a.75.75 0 011.5 0v6.75a4.5 4.5 0 01-4.5-4.5H6.75a4.5 4.5 0 01-4.5-4.5v-6.75a4.5 4.5 0 014.5-4.5v-3A5.25 5.25 0 0112 1.5a.75.75 0 010 1.5A3.75 3.75 0 008.25 6.75v3a.75.75 0 01-1.5 0v-3z" /><path fill-rule="evenodd" d="M12.75 1.5a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3a.75.75 0 01.75-.75z" clip-rule="evenodd" /></svg>`;
+        const unlockedIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12 text-white"><path d="M13.5 1.5A5.25 5.25 0 008.25 6.75v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3A5.25 5.25 0 0013.5 1.5zM12 6.75a3.75 3.75 0 117.5 0v3H12v-3z" /><path d="M5.25 12.375a.75.75 0 01.75-.75h.01a.75.75 0 01.75.75v6.75a.75.75 0 01-1.5 0V12.375z" /></svg>`;
 
 
         // --- Toast Notifications ---
@@ -1012,16 +1012,19 @@
             }
             userDatabase = users || []; // Cache the user data
             
-            userList.innerHTML = userDatabase.map(user => {
+            const colors = ['#38bdf8', '#fb923c', '#a3e635', '#f472b6', '#818cf8', '#2dd4bf'];
+
+            userList.innerHTML = userDatabase.map((user, index) => {
                 const hasPassword = user.password && user.password.trim() !== '';
                 const iconHTML = hasPassword ? lockedIconSVG : unlockedIconSVG;
+                const color = colors[index % colors.length];
 
                 return `
                 <div data-name="${user.name}" class="flex flex-col items-center gap-2 cursor-pointer group">
                     <div class="w-24 h-24 p-5 rounded-full bg-slate-600 group-hover:bg-slate-500 transition-colors flex items-center justify-center overflow-hidden">
                         ${iconHTML}
                     </div>
-                    <h2 class="text-xl font-bold text-slate-200 group-hover:text-white">${user.name}</h2>
+                    <h2 class="text-xl font-bold" style="color: ${color};">${user.name}</h2>
                 </div>`;
             }).join('');
             userSelectionScreen.classList.remove('hidden');
