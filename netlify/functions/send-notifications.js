@@ -42,11 +42,39 @@ exports.handler = async function(event, context) {
             return { statusCode: 200, body: "No users with subscriptions." };
         }
         console.log(`Found ${users.length} user(s) with subscriptions.`);
+
+        // --- 4. NEW: Process Share/Unshare Notifications ---
+        console.log("Checking for recent share status changes...");
+        const { data: sharedTasks } = await supabase.from('tasks').select('title, owner, is_shared').gte('is_shared_updated_at', fiveMinutesAgo.toISOString());
+        const { data: sharedEvents } = await supabase.from('events').select('title, owner, is_shared').gte('is_shared_updated_at', fiveMinutesAgo.toISOString());
+        const recentlySharedItems = [
+            ...(sharedTasks || []).map(t => ({...t, type: 'مهمة'})),
+            ...(sharedEvents || []).map(e => ({...e, type: 'موعد'}))
+        ];
+
+        if (recentlySharedItems.length > 0) {
+            console.log(`Found ${recentlySharedItems.length} recently shared/unshared item(s).`);
+            for (const item of recentlySharedItems) {
+                const actionText = item.is_shared ? 'بمشاركة' : 'بإلغاء مشاركة';
+                const body = `قام ${item.owner} ${actionText} ${item.type}: "${item.title}"`;
+
+                // Send to all *other* subscribed users
+                const recipients = users.filter(u => u.name !== item.owner);
+                for (const recipient of recipients) {
+                     await sendNotification(supabase, recipient.push_subscription, {
+                        appName: `إدارة المهام`, // General title for share notifications
+                        body: body
+                    }, recipient.name);
+                }
+            }
+        } else {
+            console.log("No recent share changes found.");
+        }
         
-        // --- 4. Process notifications for each user ---
+        // --- 5. Process notifications for each user (reminders and summaries) ---
         for (const user of users) {
             try {
-                console.log(`\nProcessing notifications for user: ${user.name}`);
+                console.log(`\nProcessing standard notifications for user: ${user.name}`);
                 const subscription = user.push_subscription;
                 const ownerName = user.name;
                 
@@ -214,13 +242,13 @@ exports.handler = async function(event, context) {
 function shouldSendReminder(targetTime, currentTime, minutesBefore, windowMinutes = 5) {
     const reminderTime = new Date(targetTime.getTime() - minutesBefore * 60 * 1000);
     const windowStart = new Date(currentTime.getTime() - windowMinutes * 60 * 1000);
-    const shouldSend = reminderTime > windowStart && reminderTime <= currentTime;
+    const shouldSend = reminderTime >= windowStart && reminderTime < currentTime; // Use >= to include the exact start of the window
     return shouldSend;
 }
 
+
 async function sendNotification(supabase, subscription, payload, userName) {
     try {
-        // Use appName as the title for the notification
         const notificationPayload = {
             title: payload.appName,
             body: payload.body
