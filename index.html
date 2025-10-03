@@ -922,22 +922,6 @@
         
         function archiveTask(taskId) { confirmAction('تأكيد الأرشفة', 'هل أنت متأكد من أرشفة هذه المهمة؟', () => updateTaskStatus(taskId, 'مؤرشفة')); }
 
-        async function sendShareNotification(item, isShared) {
-            if (!item || !currentUser) return;
-            const actionText = isShared ? 'مشاركة' : 'إلغاء مشاركة';
-            try {
-                const { data, error } = await supabaseClient.functions.invoke('send-notification', {
-                     body: { 
-                        sharerName: currentUser, 
-                        itemTitle: item.title, 
-                        itemType: item.type === 'tasks' ? 'مهمة' : 'موعد',
-                        action: actionText
-                    } 
-                });
-                if (error) throw error;
-            } catch (error) { console.error('Error invoking share notification function:', error); }
-        }
-
         async function deleteItem(table, id) {
             confirmAction('تأكيد الحذف', 'هل أنت متأكد من حذف هذا العنصر؟', async () => {
                 const { error } = await supabaseClient.from(table).delete().eq('id', id);
@@ -947,12 +931,15 @@
         }
         async function toggleShare(item) {
             const newSharedStatus = !item.is_shared;
-            const { error } = await supabaseClient.from(item.type).update({ is_shared: newSharedStatus }).eq('id', item.id);
+            const payload = { 
+                is_shared: newSharedStatus,
+                is_shared_updated_at: new Date().toISOString()
+            };
+            const { error } = await supabaseClient.from(item.type).update(payload).eq('id', item.id);
             if (error) { 
                 showToast('فشل تحديث حالة المشاركة.', 'error'); console.error(error); 
             } else {
                 showToast(newSharedStatus ? 'تمت المشاركة بنجاح' : 'تم إلغاء المشاركة');
-                await sendShareNotification(item, newSharedStatus);
                 await fetchAllData(false);
             }
         }
